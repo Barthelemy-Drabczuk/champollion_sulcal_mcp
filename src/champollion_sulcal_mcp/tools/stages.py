@@ -1,0 +1,624 @@
+from __future__ import annotations
+
+import os
+from pathlib import Path
+
+from fastmcp import Context
+from fastmcp.exceptions import ToolError
+
+from .. import preflight, runner
+
+
+def _require_absolute(path: str, name: str) -> None:
+    if not Path(path).is_absolute():
+        raise ToolError(f"{name} must be an absolute path, got: {path!r}")
+
+
+def _job_result(state, stage: str) -> dict:
+    return {"job_id": state.job_id, "status": state.status, "stage": stage,
+            "log_path": state.log_path, "output_dir": state.output_dir}
+
+
+def _build_env(*, pass_hf_token: bool = False) -> dict:
+    env = os.environ.copy()
+    if not pass_hf_token:
+        env.pop("HF_TOKEN", None)
+
+    try:
+        pipeline_dir = preflight.resolve_pipeline_dir()
+        pixi_bin = pipeline_dir / ".pixi" / "envs" / "default" / "bin"
+
+        # Inject BRAINVISA_SHARE when not set — required by AIMS/Anatomist to locate
+        # nomenclature files and read .arg sulcal graphs correctly.
+        if not env.get("BRAINVISA_SHARE"):
+            brainvisa_share = pipeline_dir / ".pixi" / "envs" / "default" / "share"
+            if brainvisa_share.is_dir():
+                env["BRAINVISA_SHARE"] = str(brainvisa_share)
+
+        # Prepend the pixi env bin to PATH so BrainVISA tools (e.g. VipSkeleton)
+        # are found by subprocesses. If BRAINVISA is set, also prepend $BRAINVISA/bin.
+        path_parts = []
+        brainvisa_var = env.get("BRAINVISA")
+        if brainvisa_var:
+            brainvisa_bin = Path(brainvisa_var) / "bin"
+            if brainvisa_bin.is_dir():
+                path_parts.append(str(brainvisa_bin))
+        if pixi_bin.is_dir():
+            path_parts.append(str(pixi_bin))
+        if path_parts:
+            current_path = env.get("PATH", "")
+            env["PATH"] = os.pathsep.join(path_parts + [current_path])
+
+    except FileNotFoundError:
+        pass
+
+    return env
+
+
+async def start_morphologist(
+    input_dir: str,
+    output_dir: str,
+    parallel: bool = False,
+    enable_sulcal_recognition: bool = False,
+    ctx: Context | None = None,
+) -> dict:
+    """Launch Stage 1: generate sulcal graphs with Morphologist from raw T1 MRI data."""
+    _require_absolute(input_dir, "input_dir")
+    _require_absolute(output_dir, "output_dir")
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+
+    try:
+        loc = preflight.detect()
+    except FileNotFoundError as e:
+        raise ToolError(str(e)) from e
+
+    script = loc.scripts_dir / "generate_morphologist_graphs.py"
+    if not script.exists():
+        raise ToolError(f"Script not found: {script}")
+
+    argv = [str(loc.python_exe), str(script), input_dir, output_dir]
+    if parallel:
+        argv.append("--parallel")
+    if enable_sulcal_recognition:
+        argv.append("--enable-sulcal-recognition")
+
+    if ctx:
+        await ctx.info(f"Launching morphologist stage: {input_dir} → {output_dir}")
+
+    state = await runner.launch(
+        stage="morphologist",
+        argv=argv,
+        output_dir=output_dir,
+        cwd=str(loc.pipeline_dir),
+        env=_build_env(),
+        args_snapshot={"input_dir": input_dir, "output_dir": output_dir, "parallel": parallel},
+    )
+    return _job_result(state, "morphologist")
+
+
+async def start_cortical_tiles(
+    input_dir: str,
+    output_dir: str,
+    path_to_graph: str,
+    path_sk_with_hull: str,
+    sk_qc_path: str | None = None,
+    njobs: int | None = None,
+    masks: str | None = None,
+    regions: list[str] | None = None,
+    ctx: Context | None = None,
+) -> dict:
+    """Launch Stage 2: extract 28 sulcal region crops with cortical_tiles."""
+    _require_absolute(input_dir, "input_dir")
+    _require_absolute(output_dir, "output_dir")
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+
+    try:
+        loc = preflight.detect()
+    except FileNotFoundError as e:
+        raise ToolError(str(e)) from e
+
+    script = loc.scripts_dir / "run_cortical_tiles.py"
+    if not script.exists():
+        raise ToolError(f"Script not found: {script}")
+
+    argv = [
+        str(loc.python_exe), str(script),
+        input_dir, output_dir,
+        "--path_to_graph", path_to_graph,
+        "--path_sk_with_hull", path_sk_with_hull,
+    ]
+    if sk_qc_path:
+        argv += ["--sk_qc_path", sk_qc_path]
+    if njobs is not None:
+        argv += ["--njobs", str(njobs)]
+    if masks:
+        argv += ["--masks", masks]
+    if regions:
+        argv += ["--regions"] + regions
+
+    if ctx:
+        await ctx.info(f"Launching cortical_tiles stage: {input_dir} → {output_dir}")
+
+    state = await runner.launch(
+        stage="cortical_tiles",
+        argv=argv,
+        output_dir=output_dir,
+        cwd=str(loc.pipeline_dir),
+        env=_build_env(),
+        args_snapshot={
+            "input_dir": input_dir,
+            "output_dir": output_dir,
+            "path_to_graph": path_to_graph,
+            "path_sk_with_hull": path_sk_with_hull,
+        },
+    )
+    return _job_result(state, "cortical_tiles")
+
+
+async def start_config(
+    crop_path: str,
+    dataset: str,
+    champollion_loc: str | None = None,
+    output: str | None = None,
+    external_config: str | None = None,
+    external_crops: bool = False,
+    ctx: Context | None = None,
+) -> dict:
+    """Launch Stage 3: generate Champollion dataset YAML configuration files."""
+    _require_absolute(crop_path, "crop_path")
+
+    try:
+        loc = preflight.detect()
+    except FileNotFoundError as e:
+        raise ToolError(str(e)) from e
+
+    script = loc.scripts_dir / "generate_champollion_config.py"
+    if not script.exists():
+        raise ToolError(f"Script not found: {script}")
+
+    argv = [str(loc.python_exe), str(script), crop_path, "--dataset", dataset]
+    if champollion_loc:
+        argv += ["--champollion_loc", champollion_loc]
+    if output:
+        argv += ["--output", output]
+    if external_config:
+        argv += ["--external-config", external_config]
+    if external_crops:
+        argv.append("--external_crops")
+
+    output_dir = output or crop_path
+
+    if ctx:
+        await ctx.info(f"Launching config stage for dataset: {dataset}")
+
+    state = await runner.launch(
+        stage="config",
+        argv=argv,
+        output_dir=output_dir,
+        cwd=str(loc.pipeline_dir),
+        env=_build_env(),
+        args_snapshot={"crop_path": crop_path, "dataset": dataset},
+    )
+    return _job_result(state, "config")
+
+
+async def start_embeddings(
+    models_path: str,
+    dataset_localization: str,
+    datasets_root: str,
+    short_name: str,
+    datasets: list[str] | None = None,
+    labels: list[str] | None = None,
+    embeddings_only: bool = True,
+    nb_jobs: int | None = None,
+    cpu: bool = False,
+    overwrite: bool = False,
+    config_path: str | None = None,
+    ctx: Context | None = None,
+) -> dict:
+    """Launch Stage 4: compute sulcal embeddings across all 56 model folds (28 regions × 2 hemispheres)."""
+    _require_absolute(models_path, "models_path")
+    _require_absolute(datasets_root, "datasets_root")
+
+    try:
+        loc = preflight.detect()
+    except FileNotFoundError as e:
+        raise ToolError(str(e)) from e
+
+    script = loc.scripts_dir / "generate_embeddings.py"
+    if not script.exists():
+        raise ToolError(f"Script not found: {script}")
+
+    argv = [str(loc.python_exe), str(script), models_path, dataset_localization, datasets_root, short_name]
+
+    if datasets:
+        argv += ["--datasets"] + datasets
+    if labels:
+        argv += ["--labels"] + labels
+    if embeddings_only:
+        argv.append("--embeddings_only")
+    if nb_jobs is not None:
+        argv += ["--nb_jobs", str(nb_jobs)]
+    if cpu:
+        argv.append("--cpu")
+    if overwrite:
+        argv.append("--overwrite")
+    if config_path:
+        argv += ["--config_path", config_path]
+
+    # Pass HF_TOKEN through for this stage
+    env = _build_env(pass_hf_token=True)
+
+    if ctx:
+        await ctx.info(f"Launching embeddings stage: models={models_path}, short_name={short_name}")
+
+    state = await runner.launch(
+        stage="embeddings",
+        argv=argv,
+        output_dir=datasets_root,
+        cwd=str(loc.pipeline_dir),
+        env=env,
+        args_snapshot={
+            "models_path": models_path,
+            "dataset_localization": dataset_localization,
+            "short_name": short_name,
+        },
+    )
+    return _job_result(state, "embeddings")
+
+
+async def start_combine(
+    embeddings_subpath: str,
+    output_path: str,
+    path_models: str | None = None,
+    ctx: Context | None = None,
+) -> dict:
+    """Launch Stage 5: collect all per-region embedding CSVs into a single output directory."""
+    _require_absolute(output_path, "output_path")
+    Path(output_path).mkdir(parents=True, exist_ok=True)
+
+    try:
+        loc = preflight.detect()
+    except FileNotFoundError as e:
+        raise ToolError(str(e)) from e
+
+    script = loc.scripts_dir / "put_together_embeddings.py"
+    if not script.exists():
+        raise ToolError(f"Script not found: {script}")
+
+    argv = [
+        str(loc.python_exe), str(script),
+        "--embeddings_subpath", embeddings_subpath,
+        "--output_path", output_path,
+    ]
+    if path_models:
+        argv += ["--path_models", path_models]
+
+    if ctx:
+        await ctx.info(f"Launching combine stage → {output_path}")
+
+    state = await runner.launch(
+        stage="combine",
+        argv=argv,
+        output_dir=output_path,
+        cwd=str(loc.pipeline_dir),
+        env=_build_env(),
+        args_snapshot={"embeddings_subpath": embeddings_subpath, "output_path": output_path},
+    )
+    return _job_result(state, "combine")
+
+
+async def start_streaming(
+    input_dir: str,
+    output_dir: str,
+    dataset: str,
+    path_to_graph: str,
+    path_sk_with_hull: str,
+    bids: bool = False,
+    n_workers: int = 0,
+    worker_timeout: int = 7200,
+    poll_interval: int = 10,
+    sk_qc_path: str | None = None,
+    models_path: str | None = None,
+    dataset_localization: str = "local",
+    datasets_root: str | None = None,
+    short_name: str = "eval",
+    embeddings_path: str = "champollion_V1",
+    dry_run: bool = False,
+    ctx: Context | None = None,
+) -> dict:
+    """Launch scan-centric streaming pipeline: one worker per scan runs stages 2-4 in parallel.
+
+    Each worker owns one ScanId and processes cortical_tiles → config → embeddings
+    sequentially for its scan, using file-presence barriers between stages.
+    Stage 5 (combine) runs once after all workers drain.
+
+    Requires embeddings_only mode (training aggregates all subjects and cannot be parallelised per-scan).
+    """
+    _require_absolute(input_dir, "input_dir")
+    _require_absolute(output_dir, "output_dir")
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+
+    try:
+        loc = preflight.detect()
+    except FileNotFoundError as e:
+        raise ToolError(str(e)) from e
+
+    script = loc.scripts_dir / "run_streaming.py"
+    if not script.exists():
+        raise ToolError(f"Script not found: {script}")
+
+    argv = [
+        str(loc.python_exe), str(script),
+        input_dir, output_dir,
+        "--dataset", dataset,
+        "--path-to-graph", path_to_graph,
+        "--path-sk-with-hull", path_sk_with_hull,
+        "--n-workers", str(n_workers),
+        "--worker-timeout", str(worker_timeout),
+        "--poll-interval", str(poll_interval),
+        "--dataset-localization", dataset_localization,
+        "--short-name", short_name,
+        "--embeddings-path", embeddings_path,
+    ]
+    if bids:
+        argv.append("--bids")
+    if sk_qc_path:
+        argv += ["--sk-qc-path", sk_qc_path]
+    if models_path:
+        argv += ["--models-path", models_path]
+    if datasets_root:
+        argv += ["--datasets-root", datasets_root]
+    if dry_run:
+        argv.append("--dry-run")
+
+    if ctx:
+        await ctx.info(
+            f"Launching streaming pipeline: {input_dir} → {output_dir} "
+            f"(n_workers={n_workers or 'auto'}, bids={bids})"
+        )
+
+    state = await runner.launch(
+        stage="streaming",
+        argv=argv,
+        output_dir=output_dir,
+        cwd=str(loc.pipeline_dir),
+        env=_build_env(pass_hf_token=True),
+        args_snapshot={
+            "input_dir": input_dir,
+            "output_dir": output_dir,
+            "dataset": dataset,
+            "n_workers": n_workers,
+            "bids": bids,
+            "dry_run": dry_run,
+        },
+    )
+    return _job_result(state, "streaming")
+
+
+async def start_training(
+    dataset: str,
+    region: str,
+    mode: str = "encoder",
+    output_dir: str | None = None,
+    config_dir: str | None = None,
+    njobs: int | None = None,
+    cpu: bool = False,
+    overwrite: bool = False,
+    swf: bool = False,
+    ctx: Context | None = None,
+) -> dict:
+    """Launch encoder training: train a champollion_V1 self-supervised encoder for one sulcal region.
+
+    Dataset configs must exist before calling this tool — run start_config first (or supply
+    config_dir if configs live outside the champollion_V1 submodule).
+    """
+    if output_dir is not None:
+        _require_absolute(output_dir, "output_dir")
+    if config_dir is not None:
+        _require_absolute(config_dir, "config_dir")
+
+    try:
+        loc = preflight.detect()
+    except FileNotFoundError as e:
+        raise ToolError(str(e)) from e
+
+    script = loc.scripts_dir / "train_champollion.py"
+    if not script.exists():
+        raise ToolError(f"Script not found: {script}")
+
+    resolved_output_dir = output_dir or str(
+        loc.pipeline_dir / "data" / dataset / "derivatives" / "champollion_V1" / "models" / region
+    )
+    Path(resolved_output_dir).mkdir(parents=True, exist_ok=True)
+
+    argv = [
+        str(loc.python_exe), str(script),
+        "--dataset", dataset,
+        "--region", region,
+        "--mode", mode,
+        "--output_dir", resolved_output_dir,
+    ]
+    if config_dir:
+        argv += ["--config-dir", config_dir]
+    if njobs is not None:
+        argv += ["--njobs", str(njobs)]
+    if cpu:
+        argv.append("--cpu")
+    if overwrite:
+        argv.append("--overwrite")
+    if swf:
+        argv.append("--swf")
+
+    if ctx:
+        await ctx.info(
+            f"Launching training: dataset={dataset}, region={region}, mode={mode}, "
+            f"output={resolved_output_dir}"
+        )
+
+    state = await runner.launch(
+        stage="training",
+        argv=argv,
+        output_dir=resolved_output_dir,
+        cwd=str(loc.pipeline_dir),
+        env=_build_env(),
+        args_snapshot={"dataset": dataset, "region": region, "mode": mode},
+    )
+    return _job_result(state, "training")
+
+
+async def purge_subject(
+    derivatives: str,
+    subject: str,
+    dry_run: bool = False,
+    ctx: Context | None = None,
+) -> dict:
+    """Remove all cortical_tiles derivatives for a single subject.
+
+    Deletes per-subject NIfTI files (crops, labels, extremities, distbottom),
+    per-subject subdirectories (skeletons/, foldlabels/, transforms/, distmaps/),
+    and filters the subject's row from aggregated .npy arrays and their subject CSVs.
+
+    Use dry_run=True to preview what would be deleted without modifying anything.
+    """
+    _require_absolute(derivatives, "derivatives")
+
+    try:
+        loc = preflight.detect()
+    except FileNotFoundError as e:
+        raise ToolError(str(e)) from e
+
+    script = loc.scripts_dir / "purge_subject.py"
+    if not script.exists():
+        raise ToolError(f"Script not found: {script}")
+
+    argv = [str(loc.python_exe), str(script), derivatives, "--subject", subject]
+    if dry_run:
+        argv.append("--dry-run")
+
+    if ctx:
+        await ctx.info(f"Purging subject '{subject}' from: {derivatives} (dry_run={dry_run})")
+
+    state = await runner.launch(
+        stage="purge_subject",
+        argv=argv,
+        output_dir=derivatives,
+        cwd=str(loc.pipeline_dir),
+        env=_build_env(),
+        args_snapshot={"derivatives": derivatives, "subject": subject, "dry_run": dry_run},
+    )
+    return _job_result(state, "purge_subject")
+
+
+async def prune_failed_subjects(
+    output: str,
+    qc: str,
+    dry_run: bool = False,
+    ctx: Context | None = None,
+) -> dict:
+    """Remove cortical_tiles outputs for all subjects that failed QC.
+
+    Reads a QC TSV/CSV file with 'participant_id' and 'qc' columns and deletes
+    all files belonging to subjects with qc==0 or absent from the QC file.
+    Equivalent to having run cortical_tiles with --sk_qc_path from the start.
+
+    Use dry_run=True to preview what would be deleted without modifying anything.
+    """
+    _require_absolute(output, "output")
+    _require_absolute(qc, "qc")
+
+    try:
+        loc = preflight.detect()
+    except FileNotFoundError as e:
+        raise ToolError(str(e)) from e
+
+    script = loc.scripts_dir / "prune_failed_subjects.py"
+    if not script.exists():
+        raise ToolError(f"Script not found: {script}")
+
+    argv = [str(loc.python_exe), str(script), output, "--qc", qc]
+    if dry_run:
+        argv.append("--dry-run")
+
+    if ctx:
+        await ctx.info(f"Pruning QC-failing subjects from: {output} (qc={qc}, dry_run={dry_run})")
+
+    state = await runner.launch(
+        stage="prune_failed_subjects",
+        argv=argv,
+        output_dir=output,
+        cwd=str(loc.pipeline_dir),
+        env=_build_env(),
+        args_snapshot={"output": output, "qc": qc, "dry_run": dry_run},
+    )
+    return _job_result(state, "prune_failed_subjects")
+
+
+async def start_snapshots(
+    output_dir: str,
+    morphologist_dir: str | None = None,
+    embeddings_dir: str | None = None,
+    cortical_tiles_dir: str | None = None,
+    subject: str | None = None,
+    acquisition: str | None = None,
+    sulcal_only: bool = False,
+    tiles_only: bool = False,
+    umap_only: bool = False,
+    umap_region: str | None = None,
+    champollion_data_root: str | None = None,
+    ctx: Context | None = None,
+) -> dict:
+    """Launch Stage 6: render sulcal graph meshes, cortical tile masks, and UMAP scatter plots."""
+    _require_absolute(output_dir, "output_dir")
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+
+    try:
+        loc = preflight.detect()
+    except FileNotFoundError as e:
+        raise ToolError(str(e)) from e
+
+    script = loc.scripts_dir / "generate_snapshots.py"
+    if not script.exists():
+        raise ToolError(f"Script not found: {script}")
+
+    argv = [str(loc.python_exe), str(script), "--output_dir", output_dir]
+    if morphologist_dir:
+        argv += ["--morphologist_dir", morphologist_dir]
+    if embeddings_dir:
+        argv += ["--embeddings_dir", embeddings_dir]
+    if cortical_tiles_dir:
+        argv += ["--cortical_tiles_dir", cortical_tiles_dir]
+    if subject:
+        argv += ["--subject", subject]
+    if acquisition:
+        argv += ["--acquisition", acquisition]
+    if sulcal_only:
+        argv.append("--sulcal-only")
+    if tiles_only:
+        argv.append("--tiles-only")
+    if umap_only:
+        argv.append("--umap-only")
+    if umap_region:
+        argv += ["--umap_region", umap_region]
+    if champollion_data_root:
+        argv += ["--champollion_data_root", champollion_data_root]
+
+    if ctx:
+        await ctx.info(f"Launching snapshots stage → {output_dir}")
+
+    state = await runner.launch(
+        stage="snapshots",
+        argv=argv,
+        output_dir=output_dir,
+        cwd=str(loc.pipeline_dir),
+        env=_build_env(),
+        args_snapshot={
+            "output_dir": output_dir,
+            "morphologist_dir": morphologist_dir,
+            "cortical_tiles_dir": cortical_tiles_dir,
+            "embeddings_dir": embeddings_dir,
+            "subject": subject,
+            "champollion_data_root": champollion_data_root,
+        },
+    )
+    return _job_result(state, "snapshots")

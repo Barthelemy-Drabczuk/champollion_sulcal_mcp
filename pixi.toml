@@ -1,0 +1,25 @@
+[workspace]
+name = "champollion-sulcal-mcp"
+platforms = ["linux-64"]
+channels = ["conda-forge"]
+
+[dependencies]
+python = ">=3.11,<3.13"
+pip = "*"
+
+[pypi-dependencies]
+champollion-sulcal-mcp = { path = ".", editable = true }
+pytest = ">=8"
+pytest-asyncio = ">=0.23"
+pytest-cov = ">=5"
+ruff = ">=0.6"
+
+[tasks]
+lint = "ruff check src tests"
+lint-fix = "ruff check --fix src tests"
+format = "ruff format src tests"
+test = "pytest"
+test-unit = "pytest -m unit"
+test-cov = "pytest --cov=champollion_sulcal_mcp --cov-report=term-missing --cov-report=html"
+test-fast = "pytest -x"
+run = "python -m champollion_sulcal_mcp.server"

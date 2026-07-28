@@ -1,0 +1,12 @@
+CLAUDE.md
+.pixi/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+.env
+*.log
+.omc/
+.claude-plugin/
