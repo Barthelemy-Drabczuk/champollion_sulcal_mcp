@@ -13,7 +13,7 @@ def tmp_output_dir(tmp_path):
 @pytest.fixture
 def fake_pipeline_dir(tmp_path, monkeypatch):
     pipeline = tmp_path / "champollion_pipeline"
-    src = pipeline / "src"
+    src = pipeline / "src" / "champollion_pipeline"
     src.mkdir(parents=True)
     # Create stub scripts
     for name in [

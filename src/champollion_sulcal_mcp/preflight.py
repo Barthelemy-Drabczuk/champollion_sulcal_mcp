@@ -48,7 +48,7 @@ def resolve_pipeline_dir() -> Path:
 
 def detect() -> PipelineLocation:
     pipeline_dir = resolve_pipeline_dir()
-    scripts_dir = pipeline_dir / "src"
+    scripts_dir = pipeline_dir / "src" / "champollion_pipeline"
 
     # Prefer pixi-managed python; fall back to current interpreter
     pixi_python = pipeline_dir / ".pixi" / "envs" / "default" / "bin" / "python"
