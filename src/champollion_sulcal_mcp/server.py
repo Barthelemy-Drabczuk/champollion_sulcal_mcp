@@ -1,10 +1,28 @@
 from __future__ import annotations
 
-from fastmcp import FastMCP
+import json
 
+from fastmcp import Context, FastMCP
+
+from .roots import get_roots
 from .tools import jobs, pipeline, stages, utils
 
 mcp = FastMCP("champollion-sulcal", mask_error_details=True)
+
+
+@mcp.resource("champollion://data", mime_type="application/json")
+async def list_data_root(ctx: Context) -> str:
+    """List top-level entries within all client-declared data roots."""
+    roots = await get_roots(ctx)
+    if not roots:
+        return json.dumps({"roots": [], "note": "No roots declared by client."})
+    listing: dict[str, list[str]] = {}
+    for root in roots:
+        if root.is_dir():
+            listing[str(root)] = sorted(
+                p.name for p in root.iterdir() if not p.name.startswith(".")
+            )
+    return json.dumps({"roots": listing})
 
 # Stage launchers
 mcp.tool(stages.start_morphologist)

@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
 
 
@@ -29,6 +32,23 @@ def fake_pipeline_dir(tmp_path, monkeypatch):
     (pipeline / "external" / "cortical_tiles").mkdir(parents=True)
     monkeypatch.setenv("CHAMPOLLION_PIPELINE_DIR", str(pipeline))
     return pipeline
+
+
+@pytest.fixture
+def mock_roots(tmp_path, monkeypatch):
+    """Fixture: ctx with list_roots() returning a single tmp_path root."""
+    root = tmp_path / "data_root"
+    root.mkdir()
+
+    def _make_root_obj(path: Path):
+        obj = MagicMock()
+        obj.uri = f"file://{path}"
+        return obj
+
+    ctx = MagicMock()
+    ctx.list_roots = AsyncMock(return_value=[_make_root_obj(root)])
+    ctx.info = AsyncMock()
+    return ctx, root
 
 
 @pytest.fixture

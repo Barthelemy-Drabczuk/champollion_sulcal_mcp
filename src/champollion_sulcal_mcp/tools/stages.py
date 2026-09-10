@@ -7,6 +7,7 @@ from fastmcp import Context
 from fastmcp.exceptions import ToolError
 
 from .. import preflight, runner
+from ..roots import get_roots, validate_within_roots
 
 
 def _require_absolute(path: str, name: str) -> None:
@@ -65,6 +66,9 @@ async def start_morphologist(
     """Launch Stage 1: generate sulcal graphs with Morphologist from raw T1 MRI data."""
     _require_absolute(input_dir, "input_dir")
     _require_absolute(output_dir, "output_dir")
+    roots = await get_roots(ctx)
+    validate_within_roots(input_dir, roots, "input_dir")
+    validate_within_roots(output_dir, roots, "output_dir")
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
     try:
@@ -110,6 +114,11 @@ async def start_cortical_tiles(
     """Launch Stage 2: extract 28 sulcal region crops with cortical_tiles."""
     _require_absolute(input_dir, "input_dir")
     _require_absolute(output_dir, "output_dir")
+    roots = await get_roots(ctx)
+    validate_within_roots(input_dir, roots, "input_dir")
+    validate_within_roots(output_dir, roots, "output_dir")
+    validate_within_roots(path_to_graph, roots, "path_to_graph")
+    validate_within_roots(path_sk_with_hull, roots, "path_sk_with_hull")
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
     try:
@@ -166,6 +175,12 @@ async def start_config(
 ) -> dict:
     """Launch Stage 3: generate Champollion dataset YAML configuration files."""
     _require_absolute(crop_path, "crop_path")
+    roots = await get_roots(ctx)
+    validate_within_roots(crop_path, roots, "crop_path")
+    if output:
+        validate_within_roots(output, roots, "output")
+    if external_config is None and roots:
+        external_config = str(roots[0] / "champollion_configs" / dataset)
 
     try:
         loc = preflight.detect()
@@ -219,6 +234,9 @@ async def start_embeddings(
     """Launch Stage 4: compute sulcal embeddings across all 56 model folds (28 regions × 2 hemispheres)."""
     _require_absolute(models_path, "models_path")
     _require_absolute(datasets_root, "datasets_root")
+    roots = await get_roots(ctx)
+    validate_within_roots(models_path, roots, "models_path")
+    validate_within_roots(datasets_root, roots, "datasets_root")
 
     try:
         loc = preflight.detect()
@@ -275,6 +293,8 @@ async def start_combine(
 ) -> dict:
     """Launch Stage 5: collect all per-region embedding CSVs into a single output directory."""
     _require_absolute(output_path, "output_path")
+    roots = await get_roots(ctx)
+    validate_within_roots(output_path, roots, "output_path")
     Path(output_path).mkdir(parents=True, exist_ok=True)
 
     try:
@@ -337,6 +357,9 @@ async def start_streaming(
     """
     _require_absolute(input_dir, "input_dir")
     _require_absolute(output_dir, "output_dir")
+    roots = await get_roots(ctx)
+    validate_within_roots(input_dir, roots, "input_dir")
+    validate_within_roots(output_dir, roots, "output_dir")
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
     try:
@@ -417,6 +440,7 @@ async def start_training(
         _require_absolute(output_dir, "output_dir")
     if config_dir is not None:
         _require_absolute(config_dir, "config_dir")
+    roots = await get_roots(ctx)
 
     try:
         loc = preflight.detect()
@@ -427,9 +451,15 @@ async def start_training(
     if not script.exists():
         raise ToolError(f"Script not found: {script}")
 
-    resolved_output_dir = output_dir or str(
-        loc.pipeline_dir / "data" / dataset / "derivatives" / "champollion_V1" / "models" / region
-    )
+    if output_dir is None and roots:
+        resolved_output_dir = str(
+            roots[0] / "data" / dataset / "derivatives" / "champollion_V1" / "models" / region
+        )
+    else:
+        resolved_output_dir = output_dir or str(
+            loc.pipeline_dir / "data" / dataset / "derivatives" / "champollion_V1" / "models" / region
+        )
+    validate_within_roots(resolved_output_dir, roots, "output_dir")
     Path(resolved_output_dir).mkdir(parents=True, exist_ok=True)
 
     argv = [
@@ -482,6 +512,8 @@ async def purge_subject(
     Use dry_run=True to preview what would be deleted without modifying anything.
     """
     _require_absolute(derivatives, "derivatives")
+    roots = await get_roots(ctx)
+    validate_within_roots(derivatives, roots, "derivatives")
 
     try:
         loc = preflight.detect()
@@ -526,6 +558,9 @@ async def prune_failed_subjects(
     """
     _require_absolute(output, "output")
     _require_absolute(qc, "qc")
+    roots = await get_roots(ctx)
+    validate_within_roots(output, roots, "output")
+    validate_within_roots(qc, roots, "qc")
 
     try:
         loc = preflight.detect()
@@ -570,6 +605,8 @@ async def start_snapshots(
 ) -> dict:
     """Launch Stage 6: render sulcal graph meshes, cortical tile masks, and UMAP scatter plots."""
     _require_absolute(output_dir, "output_dir")
+    roots = await get_roots(ctx)
+    validate_within_roots(output_dir, roots, "output_dir")
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
     try:

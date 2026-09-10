@@ -55,3 +55,42 @@ async def test_start_cortical_tiles_builds_argv(fake_pipeline_dir, tmp_output_di
     assert "--path_to_graph" in argv
     assert "--njobs" in argv
     assert "4" in argv
+
+
+# --- root validation ---
+
+
+@pytest.mark.unit
+async def test_start_morphologist_rejects_output_outside_root(fake_pipeline_dir, mock_roots):
+    ctx, root = mock_roots
+    outside = "/tmp/not_in_root"
+    with pytest.raises(ToolError, match="outside declared roots"):
+        await stages.start_morphologist(
+            input_dir=str(root / "input"),
+            output_dir=outside,
+            ctx=ctx,
+        )
+
+
+@pytest.mark.unit
+async def test_start_morphologist_accepts_paths_inside_root(fake_pipeline_dir, mock_roots, recording_runner):
+    ctx, root = mock_roots
+    input_d = root / "input"
+    input_d.mkdir()
+    output_d = root / "output"
+    result = await stages.start_morphologist(
+        input_dir=str(input_d),
+        output_dir=str(output_d),
+        ctx=ctx,
+    )
+    assert result["stage"] == "morphologist"
+
+
+@pytest.mark.unit
+async def test_start_morphologist_no_ctx_skips_validation(fake_pipeline_dir, tmp_output_dir, recording_runner):
+    result = await stages.start_morphologist(
+        input_dir="/arbitrary/absolute/path",
+        output_dir=str(tmp_output_dir),
+        ctx=None,
+    )
+    assert result["stage"] == "morphologist"
