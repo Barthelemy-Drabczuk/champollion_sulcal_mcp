@@ -24,6 +24,11 @@ def _build_env(*, pass_hf_token: bool = False) -> dict:
     env = os.environ.copy()
     if not pass_hf_token:
         env.pop("HF_TOKEN", None)
+    # Use system CA bundle when the pixi env's cert store is incomplete (e.g. CEA proxy)
+    if not env.get("SSL_CERT_FILE") and not env.get("REQUESTS_CA_BUNDLE"):
+        system_ca = "/etc/ssl/certs/ca-certificates.crt"
+        if os.path.exists(system_ca):
+            env["SSL_CERT_FILE"] = system_ca
 
     try:
         pipeline_dir = preflight.resolve_pipeline_dir()
