@@ -217,23 +217,32 @@ async def start_config(
     return _job_result(state, "config")
 
 
+def _is_local_path(p: str) -> bool:
+    return p.startswith("/") or p.startswith("./") or p.startswith("../")
+
+
 async def start_embeddings(
     models_path: str,
     datasets_root: str,
     cpu: bool = False,
     overwrite: bool = False,
     masks: str | None = None,
+    masks_version: str | None = None,
     output: str | None = None,
     subjects: str | None = None,
     regions: list[str] | None = None,
     run_cka: bool = False,
+    cortical_version: str | None = None,
     ctx: Context | None = None,
 ) -> dict:
     """Launch Stage 4: compute sulcal embeddings across all 56 model folds (28 regions × 2 hemispheres)."""
-    _require_absolute(models_path, "models_path")
+    if _is_local_path(models_path):
+        _require_absolute(models_path, "models_path")
+        roots = await get_roots(ctx)
+        validate_within_roots(models_path, roots, "models_path")
+    else:
+        roots = await get_roots(ctx)
     _require_absolute(datasets_root, "datasets_root")
-    roots = await get_roots(ctx)
-    validate_within_roots(models_path, roots, "models_path")
     validate_within_roots(datasets_root, roots, "datasets_root")
 
     try:
@@ -255,12 +264,16 @@ async def start_embeddings(
         argv.append("--run-cka")
     if masks:
         argv += ["--masks", masks]
+    if masks_version:
+        argv += ["--masks-version", masks_version]
     if output:
         argv += ["--output", output]
     if subjects:
         argv += ["--subjects", subjects]
     if regions:
         argv += ["--regions"] + regions
+    if cortical_version:
+        argv += ["--cortical_version", cortical_version]
 
     env = _build_env(pass_hf_token=True)
 
