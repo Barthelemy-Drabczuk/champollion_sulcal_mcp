@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 import pytest
-
 from fastmcp.exceptions import ToolError
 
 from champollion_sulcal_mcp.roots import get_roots, validate_within_roots
-
 
 # --- validate_within_roots ---
 

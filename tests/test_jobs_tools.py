@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-import pytest
 from pathlib import Path
 
+import pytest
+
 from champollion_sulcal_mcp.job_store import JobState, write_job
-from champollion_sulcal_mcp.tools.jobs import get_job_status, list_jobs, get_job_log, cancel_job
+from champollion_sulcal_mcp.tools.jobs import cancel_job, get_job_log, get_job_status, list_jobs
 
 
 @pytest.mark.unit

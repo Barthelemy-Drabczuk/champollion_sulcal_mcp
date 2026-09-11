@@ -219,16 +219,14 @@ async def start_config(
 
 async def start_embeddings(
     models_path: str,
-    dataset_localization: str,
     datasets_root: str,
-    short_name: str,
-    datasets: list[str] | None = None,
-    labels: list[str] | None = None,
-    embeddings_only: bool = True,
-    nb_jobs: int | None = None,
     cpu: bool = False,
     overwrite: bool = False,
-    config_path: str | None = None,
+    masks: str | None = None,
+    output: str | None = None,
+    subjects: str | None = None,
+    regions: list[str] | None = None,
+    run_cka: bool = False,
     ctx: Context | None = None,
 ) -> dict:
     """Launch Stage 4: compute sulcal embeddings across all 56 model folds (28 regions × 2 hemispheres)."""
@@ -247,28 +245,27 @@ async def start_embeddings(
     if not script.exists():
         raise ToolError(f"Script not found: {script}")
 
-    argv = [str(loc.python_exe), str(script), models_path, dataset_localization, datasets_root, short_name]
+    argv = [str(loc.python_exe), str(script), models_path, datasets_root]
 
-    if datasets:
-        argv += ["--datasets"] + datasets
-    if labels:
-        argv += ["--labels"] + labels
-    if embeddings_only:
-        argv.append("--embeddings_only")
-    if nb_jobs is not None:
-        argv += ["--nb_jobs", str(nb_jobs)]
     if cpu:
         argv.append("--cpu")
     if overwrite:
         argv.append("--overwrite")
-    if config_path:
-        argv += ["--config_path", config_path]
+    if run_cka:
+        argv.append("--run-cka")
+    if masks:
+        argv += ["--masks", masks]
+    if output:
+        argv += ["--output", output]
+    if subjects:
+        argv += ["--subjects", subjects]
+    if regions:
+        argv += ["--regions"] + regions
 
-    # Pass HF_TOKEN through for this stage
     env = _build_env(pass_hf_token=True)
 
     if ctx:
-        await ctx.info(f"Launching embeddings stage: models={models_path}, short_name={short_name}")
+        await ctx.info(f"Launching embeddings stage: models={models_path}, datasets_root={datasets_root}")
 
     state = await runner.launch(
         stage="embeddings",
@@ -276,24 +273,21 @@ async def start_embeddings(
         output_dir=datasets_root,
         cwd=str(loc.pipeline_dir),
         env=env,
-        args_snapshot={
-            "models_path": models_path,
-            "dataset_localization": dataset_localization,
-            "short_name": short_name,
-        },
+        args_snapshot={"models_path": models_path, "datasets_root": datasets_root},
     )
     return _job_result(state, "embeddings")
 
 
 async def start_combine(
-    embeddings_subpath: str,
+    embeddings_source: str,
     output_path: str,
-    path_models: str | None = None,
     ctx: Context | None = None,
 ) -> dict:
     """Launch Stage 5: collect all per-region embedding CSVs into a single output directory."""
+    _require_absolute(embeddings_source, "embeddings_source")
     _require_absolute(output_path, "output_path")
     roots = await get_roots(ctx)
+    validate_within_roots(embeddings_source, roots, "embeddings_source")
     validate_within_roots(output_path, roots, "output_path")
     Path(output_path).mkdir(parents=True, exist_ok=True)
 
@@ -306,16 +300,10 @@ async def start_combine(
     if not script.exists():
         raise ToolError(f"Script not found: {script}")
 
-    argv = [
-        str(loc.python_exe), str(script),
-        "--embeddings_subpath", embeddings_subpath,
-        "--output_path", output_path,
-    ]
-    if path_models:
-        argv += ["--path_models", path_models]
+    argv = [str(loc.python_exe), str(script), embeddings_source, "--output_path", output_path]
 
     if ctx:
-        await ctx.info(f"Launching combine stage → {output_path}")
+        await ctx.info(f"Launching combine stage: {embeddings_source} → {output_path}")
 
     state = await runner.launch(
         stage="combine",
@@ -323,7 +311,7 @@ async def start_combine(
         output_dir=output_path,
         cwd=str(loc.pipeline_dir),
         env=_build_env(),
-        args_snapshot={"embeddings_subpath": embeddings_subpath, "output_path": output_path},
+        args_snapshot={"embeddings_source": embeddings_source, "output_path": output_path},
     )
     return _job_result(state, "combine")
 

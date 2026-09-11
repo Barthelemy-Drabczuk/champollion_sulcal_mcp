@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from datetime import UTC, datetime
+from pathlib import Path
 
 from fastmcp import Context
 from fastmcp.exceptions import ToolError
@@ -24,15 +25,10 @@ async def start_pipeline(
     crop_path: str,
     dataset: str,
     models_path: str,
-    dataset_localization: str,
     datasets_root: str,
-    short_name: str,
-    embeddings_subpath: str,
     sk_qc_path: str | None = None,
     njobs: int | None = None,
     parallel: bool = False,
-    embeddings_only: bool = True,
-    nb_jobs: int | None = None,
     cpu: bool = False,
     skip_stages: list[str] | None = None,
     ctx: Context | None = None,
@@ -72,15 +68,10 @@ async def start_pipeline(
             crop_path=crop_path,
             dataset=dataset,
             models_path=models_path,
-            dataset_localization=dataset_localization,
             datasets_root=datasets_root,
-            short_name=short_name,
-            embeddings_subpath=embeddings_subpath,
             sk_qc_path=sk_qc_path,
             njobs=njobs,
             parallel=parallel,
-            embeddings_only=embeddings_only,
-            nb_jobs=nb_jobs,
             cpu=cpu,
         )
     )
@@ -233,16 +224,16 @@ async def _launch_stage(stage_name: str, umbrella_output_dir: str, **kwargs) -> 
     elif stage_name == "embeddings":
         return await stages.start_embeddings(
             models_path=kwargs["models_path"],
-            dataset_localization=kwargs["dataset_localization"],
             datasets_root=kwargs["datasets_root"],
-            short_name=kwargs["short_name"],
-            embeddings_only=kwargs.get("embeddings_only", True),
-            nb_jobs=kwargs.get("nb_jobs"),
             cpu=kwargs.get("cpu", False),
         )
     elif stage_name == "combine":
+        datasets_root = kwargs["datasets_root"]
+        embeddings_source = str(
+            Path(datasets_root).parent / (Path(datasets_root).name + "embeddings")
+        )
         return await stages.start_combine(
-            embeddings_subpath=kwargs["embeddings_subpath"],
+            embeddings_source=embeddings_source,
             output_path=umbrella_output_dir,
         )
     elif stage_name == "snapshots":

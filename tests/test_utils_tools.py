@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from champollion_sulcal_mcp.tools.utils import get_pipeline_info, preflight_check, TOOL_NAMES, STAGE_DESCRIPTIONS
+from champollion_sulcal_mcp.tools.utils import TOOL_NAMES, get_pipeline_info, preflight_check
 
 
 @pytest.mark.unit
