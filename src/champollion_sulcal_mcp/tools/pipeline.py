@@ -14,6 +14,8 @@ from . import stages
 
 logger = logging.getLogger(__name__)
 
+DERIVATIVES_SUBDIR = "derivatives"
+
 STAGE_ORDER = ["morphologist", "cortical_tiles", "config", "embeddings", "combine", "snapshots"]
 
 
@@ -210,7 +212,7 @@ async def _launch_stage(stage_name: str, umbrella_output_dir: str, **kwargs) -> 
     elif stage_name == "cortical_tiles":
         return await stages.start_cortical_tiles(
             input_dir=kwargs["input_dir"],
-            output_dir=umbrella_output_dir,
+            output_dir=str(Path(umbrella_output_dir) / DERIVATIVES_SUBDIR),
             path_to_graph=kwargs["path_to_graph"],
             path_sk_with_hull=kwargs["path_sk_with_hull"],
             sk_qc_path=kwargs.get("sk_qc_path"),
