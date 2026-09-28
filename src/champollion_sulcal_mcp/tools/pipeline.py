@@ -33,6 +33,7 @@ async def start_pipeline(
     parallel: bool = False,
     cpu: bool = False,
     skip_stages: list[str] | None = None,
+    labelling_session: str | None = None,
     ctx: Context | None = None,
 ) -> dict:
     """Launch the full Champollion pipeline (all 6 stages sequentially). Returns a pipeline job_id immediately."""
@@ -75,6 +76,7 @@ async def start_pipeline(
             njobs=njobs,
             parallel=parallel,
             cpu=cpu,
+            labelling_session=labelling_session,
         )
     )
     task.add_done_callback(_handle_task_exception)
@@ -217,6 +219,7 @@ async def _launch_stage(stage_name: str, umbrella_output_dir: str, **kwargs) -> 
             path_sk_with_hull=kwargs["path_sk_with_hull"],
             sk_qc_path=kwargs.get("sk_qc_path"),
             njobs=kwargs.get("njobs"),
+            labelling_session=kwargs.get("labelling_session"),
         )
     elif stage_name == "config":
         return await stages.start_config(
