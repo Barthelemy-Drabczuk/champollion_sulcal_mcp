@@ -91,6 +91,53 @@ async def test_start_cortical_tiles_omits_labelling_session_by_default(
     assert "--labelling_session" not in argv
 
 
+# --- REQ-OVERWRITE-01: optional overwrite flag ---
+
+_GRAPH = "sub-*/t1mri/default_acquisition/default_analysis/folds/3.3"
+_SK_HULL = "sub-*/t1mri/default_acquisition/default_analysis/segmentation"
+
+
+@pytest.mark.unit
+async def test_start_cortical_tiles_forwards_overwrite(fake_pipeline_dir, tmp_output_dir, recording_runner):
+    """REQ-OVERWRITE-01: overwrite=True appends exactly one `--overwrite` to argv."""
+    await stages.start_cortical_tiles(
+        input_dir="/abs/input",
+        output_dir=str(tmp_output_dir),
+        path_to_graph=_GRAPH,
+        path_sk_with_hull=_SK_HULL,
+        overwrite=True,
+    )
+    argv = recording_runner[0]["argv"]
+    assert argv.count("--overwrite") == 1
+
+
+@pytest.mark.unit
+async def test_start_cortical_tiles_omits_overwrite_by_default(fake_pipeline_dir, tmp_output_dir, recording_runner):
+    """REQ-OVERWRITE-01: without overwrite, no `--overwrite` flag is added."""
+    await stages.start_cortical_tiles(
+        input_dir="/abs/input",
+        output_dir=str(tmp_output_dir),
+        path_to_graph=_GRAPH,
+        path_sk_with_hull=_SK_HULL,
+    )
+    argv = recording_runner[0]["argv"]
+    assert "--overwrite" not in argv
+
+
+@pytest.mark.unit
+async def test_start_cortical_tiles_omits_overwrite_when_false(fake_pipeline_dir, tmp_output_dir, recording_runner):
+    """REQ-OVERWRITE-01: explicit overwrite=False adds no `--overwrite` flag."""
+    await stages.start_cortical_tiles(
+        input_dir="/abs/input",
+        output_dir=str(tmp_output_dir),
+        path_to_graph=_GRAPH,
+        path_sk_with_hull=_SK_HULL,
+        overwrite=False,
+    )
+    argv = recording_runner[0]["argv"]
+    assert "--overwrite" not in argv
+
+
 # --- root validation ---
 
 
