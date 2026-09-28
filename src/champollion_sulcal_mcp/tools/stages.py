@@ -114,6 +114,7 @@ async def start_cortical_tiles(
     njobs: int | None = None,
     masks: str | None = None,
     regions: list[str] | None = None,
+    labelling_session: str | None = None,
     ctx: Context | None = None,
 ) -> dict:
     """Launch Stage 2: extract 28 sulcal region crops with cortical_tiles."""
@@ -149,6 +150,8 @@ async def start_cortical_tiles(
         argv += ["--masks", masks]
     if regions:
         argv += ["--regions"] + regions
+    if labelling_session:
+        argv += ["--labelling_session", labelling_session]
 
     if ctx:
         await ctx.info(f"Launching cortical_tiles stage: {input_dir} → {output_dir}")

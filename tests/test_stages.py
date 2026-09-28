@@ -57,6 +57,40 @@ async def test_start_cortical_tiles_builds_argv(fake_pipeline_dir, tmp_output_di
     assert "4" in argv
 
 
+# --- REQ-LABELSESSION-01: optional labelling-session override ---
+
+
+@pytest.mark.unit
+async def test_start_cortical_tiles_forwards_labelling_session(fake_pipeline_dir, tmp_output_dir, recording_runner):
+    """REQ-LABELSESSION-01: a supplied labelling_session is forwarded as `--labelling_session <value>`."""
+    await stages.start_cortical_tiles(
+        input_dir="/abs/input",
+        output_dir=str(tmp_output_dir),
+        path_to_graph="sub-*/t1mri/default_acquisition/default_analysis/folds/3.3",
+        path_sk_with_hull="sub-*/t1mri/default_acquisition/default_analysis/segmentation",
+        labelling_session="0_auto",
+    )
+    argv = recording_runner[0]["argv"]
+    assert argv.count("--labelling_session") == 1
+    idx = argv.index("--labelling_session")
+    assert argv[idx + 1] == "0_auto"
+
+
+@pytest.mark.unit
+async def test_start_cortical_tiles_omits_labelling_session_by_default(
+    fake_pipeline_dir, tmp_output_dir, recording_runner
+):
+    """REQ-LABELSESSION-01: without labelling_session, no flag is added (pipeline default applies)."""
+    await stages.start_cortical_tiles(
+        input_dir="/abs/input",
+        output_dir=str(tmp_output_dir),
+        path_to_graph="sub-*/t1mri/default_acquisition/default_analysis/folds/3.3",
+        path_sk_with_hull="sub-*/t1mri/default_acquisition/default_analysis/segmentation",
+    )
+    argv = recording_runner[0]["argv"]
+    assert "--labelling_session" not in argv
+
+
 # --- root validation ---
 
 
