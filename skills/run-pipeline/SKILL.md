@@ -113,8 +113,9 @@ Extracts 28 standardized sulcal region crops from the graphs.
 
 Less common options (ask only if user requests customisation):
 - `--region-file` — custom sulcal region configuration file
-- `--input-types` — restrict generated input types (e.g. `skeleton foldlabel extremities`); default: all
-- `--skip-distbottom` — skip distbottom generation (unused during inference; saves time — recommend enabling)
+- `--input-types` — restrict generated input types (e.g. `skeleton foldlabel extremities`); default: `skeleton foldlabel` (extremities only on request)
+- `--with-distbottom` — generate distbottom crops (off by default; unused by champollion_V1 inference); mutually exclusive with the deprecated `--skip-distbottom`
+- `--skip-distbottom` — deprecated no-op kept for backward compatibility (distbottom is already skipped by default)
 - `--masks` — mask version tag override (e.g. `canonical_25`)
 - `--regions` — restrict to a subset of the 28 sulcal regions (space-separated)
 
