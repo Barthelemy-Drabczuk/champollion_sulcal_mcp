@@ -212,7 +212,7 @@ pixi run python3 src/generate_snapshots.py \
     --output_dir /path/to/data/TESTXX/derivatives/champollion_V1/snapshots/
 ```
 
-> **CLI-only flags (not exposed via MCP):** `--skip-distbottom`, `--input-types` (stage 2). Do not attempt to pass these.
+> **CLI-only flags (not exposed via MCP):** `--input-types` (default `skeleton foldlabel`), `--with-distbottom` (opt-in), `--skip-distbottom` (deprecated no-op) (stage 2). Do not attempt to pass these.
 
 ---
 

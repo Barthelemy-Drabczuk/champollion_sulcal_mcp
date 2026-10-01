@@ -36,7 +36,7 @@ Extracts 28 standardized sulcal region crops from Morphologist's graphs.
 
 Output: `{output_dir}/cortical_tiles-{YEAR}/crops/2mm/` — 28 region folders.
 
-> **CLI-only flags (not exposed via MCP):** `--skip-distbottom`, `--input-types`. Do not attempt to pass these through the MCP tool.
+> **CLI-only flags (not exposed via MCP):** `--input-types` (default `skeleton foldlabel`), `--with-distbottom` (opt-in distbottom generation), `--skip-distbottom` (deprecated no-op; distbottom is off by default). Do not attempt to pass these through the MCP tool.
 
 **Default `path_to_graph` by mode:**
 - Non-BIDS: `t1mri/default_acquisition/default_analysis/folds/3.1`
