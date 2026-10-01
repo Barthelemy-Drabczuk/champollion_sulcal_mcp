@@ -79,7 +79,7 @@ instead of (or before) `start_embeddings` when custom model weights are needed.
 | `njobs` | int | no | CPU DataLoader workers |
 | `cpu` | bool | no | Force CPU (disable CUDA) |
 | `overwrite` | bool | no | Re-train even if `output_dir` already exists |
-| `swf` | bool | no | Submit via soma-workflow (Neurospin HPC only) |
+| `swf` | bool | no | Not supported — `True` raises a ToolError before anything is created or launched (training has no soma-workflow mode) |
 
 Output: `{output_dir}/` — Hydra run directory containing the trained model checkpoint and config snapshot.
 

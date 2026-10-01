@@ -166,7 +166,7 @@ local directory supplied via `config_dir`.
 | `njobs` | Number of CPU DataLoader workers |
 | `cpu` | `True` to force CPU (disables CUDA) |
 | `overwrite` | `True` to re-train even if the output directory already exists |
-| `swf` | `True` to submit via soma-workflow (Neurospin HPC only) |
+| `swf` | Not supported: `True` is rejected with an error (training has no soma-workflow mode) |
 
 > **Note:** training operates on the whole dataset — it cannot be parallelised per-scan and is therefore not available in the streaming pipeline.
 
