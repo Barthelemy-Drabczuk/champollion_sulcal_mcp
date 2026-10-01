@@ -448,6 +448,8 @@ async def start_training(
     Dataset configs must exist before calling this tool — run start_config first (or supply
     config_dir if configs live outside the champollion_V1 submodule).
     """
+    if swf:
+        raise ToolError("swf=True is not supported: train_champollion has no soma-workflow mode (REQ-SWF-01).")
     if output_dir is not None:
         _require_absolute(output_dir, "output_dir")
     if config_dir is not None:
@@ -489,8 +491,6 @@ async def start_training(
         argv.append("--cpu")
     if overwrite:
         argv.append("--overwrite")
-    if swf:
-        argv.append("--swf")
 
     if ctx:
         await ctx.info(

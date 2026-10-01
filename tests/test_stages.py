@@ -175,3 +175,59 @@ async def test_start_morphologist_no_ctx_skips_validation(fake_pipeline_dir, tmp
         ctx=None,
     )
     assert result["stage"] == "morphologist"
+
+
+# --- REQ-MCP-SWF-01: start_training rejects swf=True before any side effect ---
+
+
+@pytest.fixture
+def training_script(fake_pipeline_dir):
+    """Stub train_champollion.py so start_training gets past its script-exists check."""
+    script = fake_pipeline_dir / "src" / "champollion_pipeline" / "train_champollion.py"
+    script.write_text("# stub\n")
+    return script
+
+
+@pytest.mark.unit
+async def test_start_training_rejects_swf_true_with_tool_error(training_script, tmp_path, recording_runner):
+    """REQ-MCP-SWF-01: swf=True raises a ToolError whose message names `swf`."""
+    with pytest.raises(ToolError, match="swf"):
+        await stages.start_training(
+            dataset="ds",
+            region="S.C.-sylv.",
+            output_dir=str(tmp_path / "models" / "S.C.-sylv."),
+            swf=True,
+        )
+
+
+@pytest.mark.unit
+async def test_start_training_swf_true_creates_no_output_dir(training_script, tmp_path, recording_runner):
+    """REQ-MCP-SWF-01: swf=True leaves the requested output directory uncreated."""
+    out = tmp_path / "models" / "S.C.-sylv."
+    with pytest.raises(ToolError):
+        await stages.start_training(dataset="ds", region="S.C.-sylv.", output_dir=str(out), swf=True)
+    assert not out.exists()
+
+
+@pytest.mark.unit
+async def test_start_training_swf_true_launches_no_job(training_script, tmp_path, recording_runner):
+    """REQ-MCP-SWF-01: swf=True never reaches runner.launch."""
+    with pytest.raises(ToolError):
+        await stages.start_training(
+            dataset="ds",
+            region="S.C.-sylv.",
+            output_dir=str(tmp_path / "models" / "S.C.-sylv."),
+            swf=True,
+        )
+    assert recording_runner == []
+
+
+@pytest.mark.unit
+async def test_start_training_swf_false_launches_without_swf_flag(training_script, tmp_path, recording_runner):
+    """REQ-MCP-SWF-01 regression guard: swf=False still launches one job without `--swf`."""
+    out = tmp_path / "models" / "S.C.-sylv."
+    result = await stages.start_training(dataset="ds", region="S.C.-sylv.", output_dir=str(out), swf=False)
+    assert result["stage"] == "training"
+    assert out.is_dir()
+    assert len(recording_runner) == 1
+    assert "--swf" not in recording_runner[0]["argv"]
