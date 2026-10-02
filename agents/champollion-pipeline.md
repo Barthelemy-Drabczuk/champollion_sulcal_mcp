@@ -92,7 +92,7 @@ Call `preflight_check()` before anything else. If it reports issues, stop and he
     └── snapshots/
 ```
 
-Use `./data/{dataset}/derivatives/` as the default `output_dir` for all stages. Stage 3's `output` parameter must always be asked explicitly (common value: `./data/{dataset}/derivatives/champollion_V1/configs/dataset/{dataset}`).
+Use `./data/{dataset}/derivatives/` as the default `output_dir` for all stages. Stage 3's `output` is a configs root (region YAMLs land at `{output}/dataset/{dataset}/`): ask the user whether to override it; if omitted, the pipeline default configs root `<D>/<dataset>/derivatives/champollion_V1/configs` applies (`<D>` = parent of the `<dataset>` directory in `crop_path`).
 
 **Default `path_to_graph`**:
 - Non-BIDS: `t1mri/default_acquisition/default_analysis/folds/3.1`
@@ -101,8 +101,9 @@ Use `./data/{dataset}/derivatives/` as the default `output_dir` for all stages. 
 For **stage-centric** runs, required per stage:
 - **Stage 1 (morphologist)**: `input_dir` (T1 NIfTI dir), `output_dir`
 - **Stage 2 (cortical_tiles)**: `input_dir` (Morphologist subjects/), `output_dir`, `path_to_graph`, `path_sk_with_hull`
-- **Stage 3 (config)**: `crop_path` (crops/2mm/ from stage 2), `dataset` name, `output` (**always ask the user explicitly** — do not infer from `output_dir`; common: `{output_dir}/champollion_V1/configs/dataset/{dataset}`)
-- **Stage 4 (embeddings)**: `models_path`, `dataset_localization`, `datasets_root`, `short_name`, `config_path` (stage 3 output — **always required**)
+- **Stage 3 (config)**: `crop_path` (crops/2mm/ from stage 2), `dataset` name, optional `output` (a configs root: ask the user whether to override; default `<D>/<dataset>/derivatives/champollion_V1/configs`, `<D>` = parent of the `<dataset>` directory in `crop_path`)
+- **Training (optional, `start_training`)**: `dataset`, `region`; `config_dir` defaults to `<pipeline>/data/<dataset>/derivatives/champollion_V1/configs`; pass `<D>/<dataset>/derivatives/champollion_V1/configs` when the dataset lives outside `<pipeline>/data/`, or the stage-3 `output` configs root if one was set
+- **Stage 4 (embeddings)**: `models_path`, `dataset_localization`, `datasets_root`, `short_name`
 - **Stage 5 (combine)**: `embeddings_subpath` (pattern: `{short_name}_random_embeddings/full_embeddings.csv`), `output_path`
 - **Stage 6 (snapshots)**: `output_dir`, at least one of: `morphologist_dir`, `cortical_tiles_dir`, `embeddings_dir`
 
@@ -144,7 +145,7 @@ When a job fails:
 
 1. Call `get_job_log(output_dir, job_id)` — read the full log
 2. Look for known error patterns:
-   - `IndexError: list index out of range` → missing `config_path` in embeddings stage
+   - `IndexError: list index out of range` → `datasets_root` does not contain a recognized dataset layout; verify directory structure
    - `No module named` → pixi environment not activated; check `preflight_check`
    - `FileNotFoundError` on `.arg` → wrong `path_to_graph`; verify with `ls {subjects_dir}/{subject}/{path_to_graph}/`
    - `CUDA out of memory` → use `cpu=True` or reduce `nb_jobs`
@@ -181,18 +182,17 @@ pixi run python3 src/run_cortical_tiles.py \
 
 **Stage 3 — config:**
 ```bash
+# configs land in the default configs root /path/to/data/TESTXX/derivatives/champollion_V1/configs
 pixi run python3 src/generate_champollion_config.py \
     /path/to/data/TESTXX/derivatives/cortical_tiles-2026/crops/2mm \
-    --dataset TESTXX \
-    --output /path/to/data/TESTXX/derivatives/champollion_V1/configs/dataset/TESTXX
+    --dataset TESTXX
 ```
 
 **Stage 4 — embeddings:**
 ```bash
 pixi run python3 src/generate_embeddings.py \
     <models_path> local <datasets_root> <short_name> \
-    --embeddings_only \
-    --config_path /path/to/data/TESTXX/derivatives/champollion_V1/configs/dataset/TESTXX
+    --embeddings_only
 ```
 
 **Stage 5 — combine:**
@@ -220,7 +220,6 @@ pixi run python3 src/generate_snapshots.py \
 
 - Always call `preflight_check()` first
 - Never guess or invent paths — ask the user
-- `config_path` is always required for the embeddings stage
 - Streaming mode always uses `embeddings_only=True` (training cannot be parallelised per-scan)
 - BIDS datasets need `bids=True` passed through all stages
 - `HF_TOKEN` must be in the MCP server's environment to download from HuggingFace

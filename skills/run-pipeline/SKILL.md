@@ -69,7 +69,7 @@ Ask for the inputs and outputs of **each stage the user intends to run**. All pa
     └── snapshots/
 ```
 
-Use `./data/{dataset}/derivatives/` as the default `output_dir` for all stages. Stage 3's `output` parameter must always be asked explicitly (common value: `./data/{dataset}/derivatives/champollion_V1/configs/dataset/{dataset}`).
+Use `./data/{dataset}/derivatives/` as the default `output_dir` for all stages. Stage 3's `output` is a configs root (region YAMLs land at `{output}/dataset/{dataset}/`): ask the user whether to override it; if omitted, the pipeline default configs root `<D>/<dataset>/derivatives/champollion_V1/configs` applies (`<D>` = parent of the `<dataset>` directory in `crop_path`).
 
 **Default `path_to_graph`**:
 - Non-BIDS: `t1mri/default_acquisition/default_analysis/folds/3.1`
@@ -131,15 +131,15 @@ Generates dataset YAML configuration files (`reference.yaml`, `local.yaml`).
 |-----------|-------------|
 | `crop_path` | Path to the `crops/2mm/` directory from stage 2: `{output_dir}/cortical_tiles-{YEAR}/crops/2mm` |
 | `dataset` | Short dataset name (e.g. `COHORT_XX`) |
-| `output` | **Always ask explicitly.** Where the user wants config files written. Do not infer or default. Common choice: `{output_dir}/champollion_V1/configs/dataset/{dataset}` — but confirm with the user. |
+| `output` | Configs root (region YAMLs land at `{output}/dataset/{dataset}/`). Ask the user whether to override it; if omitted, the default configs root is `<D>/<dataset>/derivatives/champollion_V1/configs` (`<D>` = parent of the `<dataset>` directory in `crop_path`). Never point it at a `dataset/{dataset}` subdirectory. |
 
 **Optional:**
 | Parameter | Description |
 |-----------|-------------|
 | `champollion_loc` | Override path to `champollion_V1` binaries (default: `external/champollion_V1`) |
-| `external_config` | For read-only containers (Apptainer/Docker): write `local.yaml` to a writable path outside the pipeline dir |
+| `external_config` | Where to write the `dataset_localization` YAML (directory or file path); default `{configs root}/dataset_localization/`. Use for read-only containers (Apptainer/Docker) that need a writable path. |
 
-> The `output` path here becomes the `config_path` for stage 4 — keep it consistent.
+> Stage 4 (`start_embeddings`) does not read these configs: each model folder carries its own `.hydra/config.yaml`. Stage-3 configs feed `start_training` (see `config_dir` below).
 
 ---
 
@@ -163,7 +163,7 @@ local directory supplied via `config_dir`.
 |-----------|-------------|
 | `mode` | `encoder` (default), `classifier`, or `regresser` |
 | `output_dir` | Absolute path for Hydra logs and model checkpoints. Defaults to `data/{dataset}/derivatives/champollion_V1/models/{region}/` |
-| `config_dir` | Root of a local Hydra configs directory (contains `dataset/{dataset}/{region}.yaml`). Required when configs were written outside the champollion_V1 submodule (i.e. when `output` was set in stage 3) |
+| `config_dir` | Hydra configs root containing `dataset/{dataset}/{region}.yaml`. Default: `<pipeline>/data/<dataset>/derivatives/champollion_V1/configs` (`<pipeline>` = champollion_pipeline root). Pass it when the dataset lives outside `<pipeline>/data/` (use `<D>/<dataset>/derivatives/champollion_V1/configs`) or when stage 3 was given an explicit `output` (use that configs root). |
 | `njobs` | Number of CPU DataLoader workers |
 | `cpu` | `True` to force CPU (disables CUDA) |
 | `overwrite` | `True` to re-train even if the output directory already exists |
@@ -183,7 +183,6 @@ Runs inference across all 56 model folds (28 regions × 2 hemispheres).
 | `dataset_localization` | Always `local` for local datasets |
 | `datasets_root` | Absolute path to the dataset derivatives root (e.g. `/data/TESTXX/derivatives/`) |
 | `short_name` | Run tag (e.g. `run01`) — used in output folder names; use different values to avoid overwriting past runs |
-| `config_path` | **Always required.** The stage 3 output directory — the folder that contains `reference.yaml` and the per-region YAML files. Without this, the embeddings pipeline crashes with `IndexError: list index out of range`. |
 
 **Optional:**
 | Parameter | Description |
@@ -271,7 +270,6 @@ start_pipeline(
   dataset=<dataset name>,
   models_path=<models path or HF repo>,
   short_name=<run tag>,
-  config_path=<stage 3 output dir>,         # always required for embeddings
   skip_stages=["morphologist", ...],         # omit if starting fresh
   parallel=<True/False>,                     # stage 1 soma-workflow
   njobs=<N>,                                 # stage 2 CPU cores
