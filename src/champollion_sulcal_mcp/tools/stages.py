@@ -207,13 +207,21 @@ async def start_config(
     land at {configs root}/dataset/<dataset>/. `output` overrides the configs root;
     `external_config` overrides where the dataset_localization YAML is written
     (default {configs root}/dataset_localization/). Each is forwarded only when
-    supplied, so the pipeline defaults apply otherwise.
+    supplied, so the pipeline defaults apply otherwise. When supplied, `output` and
+    `external_config` must be absolute paths and, when the MCP client declares
+    roots, inside a declared root.
     """
     _require_absolute(crop_path, "crop_path")
+    if output:
+        _require_absolute(output, "output")
+    if external_config:
+        _require_absolute(external_config, "external_config")
     roots = await get_roots(ctx)
     validate_within_roots(crop_path, roots, "crop_path")
     if output:
         validate_within_roots(output, roots, "output")
+    if external_config:
+        validate_within_roots(external_config, roots, "external_config")
 
     try:
         loc = preflight.detect()
