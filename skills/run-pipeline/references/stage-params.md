@@ -77,7 +77,7 @@ instead of (or before) `start_embeddings` when custom model weights are needed.
 | `region` | str | yes | Region config name, e.g. `cingulate_left`. Must match a YAML file under `configs/dataset/{dataset}/` |
 | `mode` | str | no | `encoder` (default), `classifier`, or `regresser` |
 | `output_dir` | str | no | Absolute path for Hydra logs and model checkpoints. Defaults to `{pipeline_dir}/data/{dataset}/derivatives/champollion_V1/models/{region}/` |
-| `config_dir` | str | no | Absolute path to a Hydra configs root containing `dataset/{dataset}/{region}.yaml`. Default: `{pipeline_dir}/data/{dataset}/derivatives/champollion_V1/configs`. Pass it when the dataset lives outside `{pipeline_dir}/data/` (use `<D>/<dataset>/derivatives/champollion_V1/configs`) or when `start_config` was given an explicit `output` (use that configs root) |
+| `config_dir` | str | no | Absolute path to a Hydra configs root containing `dataset/{dataset}/{region}.yaml`. Default: `{roots[0]}/data/{dataset}/derivatives/champollion_V1/configs` when the MCP client declares roots (`{roots[0]}` = first declared root, same base as the `output_dir` default), otherwise `{pipeline_dir}/data/{dataset}/derivatives/champollion_V1/configs`. Pass it when the configs live elsewhere (use `<D>/<dataset>/derivatives/champollion_V1/configs`) or when `start_config` was given an explicit `output` (use that configs root) |
 | `njobs` | int | no | CPU DataLoader workers |
 | `cpu` | bool | no | Force CPU (disable CUDA) |
 | `overwrite` | bool | no | Re-train even if `output_dir` already exists |

@@ -172,7 +172,7 @@ local directory supplied via `config_dir`.
 |-----------|-------------|
 | `mode` | `encoder` (default), `classifier`, or `regresser` |
 | `output_dir` | Absolute path for Hydra logs and model checkpoints. Defaults to `data/{dataset}/derivatives/champollion_V1/models/{region}/` |
-| `config_dir` | Hydra configs root containing `dataset/{dataset}/{region}.yaml`. Default: `<pipeline>/data/<dataset>/derivatives/champollion_V1/configs` (`<pipeline>` = champollion_pipeline root). Pass it when the dataset lives outside `<pipeline>/data/` (use `<D>/<dataset>/derivatives/champollion_V1/configs`) or when stage 3 was given an explicit `output` (use that configs root). |
+| `config_dir` | Hydra configs root containing `dataset/{dataset}/{region}.yaml`. Default: `<roots[0]>/data/<dataset>/derivatives/champollion_V1/configs` when the MCP client declares roots (`<roots[0]>` = first declared root, same base as the `output_dir` default), otherwise `<pipeline>/data/<dataset>/derivatives/champollion_V1/configs` (`<pipeline>` = champollion_pipeline root). Pass it when the configs live elsewhere (use `<D>/<dataset>/derivatives/champollion_V1/configs`) or when stage 3 was given an explicit `output` (use that configs root). |
 | `njobs` | Number of CPU DataLoader workers |
 | `cpu` | `True` to force CPU (disables CUDA) |
 | `overwrite` | `True` to re-train even if the output directory already exists |
