@@ -155,7 +155,7 @@ This is a warning, not a crash. But if the script fails immediately after, pass 
 ```
 FileNotFoundError: reference_data/umap_*.pkl
 ```
-**Fix:** The `reference_data/` directory must exist inside `champollion_pipeline/`. It is bundled with the repo — if it's missing, re-run `pixi run install-all` or check if the directory was accidentally deleted.
+**Fix:** Pass `reference_data_dir` pointing at a directory holding `umap_{region}_{hemi}.pkl` and `_coords.npy`; it is not shipped, obtain it separately or generate it with `pixi run generate-umap-reference` in `champollion_pipeline` (see the pipeline README "UMAP Visualization" section).
 
 ### Anatomist display error (headless)
 ```

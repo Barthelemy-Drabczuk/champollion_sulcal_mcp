@@ -179,3 +179,54 @@ async def test_snapshots_argv_embeddings_dir_matches_combine_output_path(fake_pi
     expected = str(dataset_root / "derivatives" / "champollion_V1" / "embeddings")
     assert _argv_value(snapshots_argv, "--embeddings_dir") == expected
     assert _argv_value(snapshots_argv, "--embeddings_dir") == _argv_value(combine_argv, "--output_path")
+
+
+# --- REQ-MCP-SNAPREF-02: start_pipeline forwards reference_data_dir to stage 6 (TASK-053) ---
+
+
+@pytest.mark.unit
+async def test_start_pipeline_hands_reference_data_dir_to_pipeline_run(monkeypatch, tmp_path):
+    """REQ-MCP-SNAPREF-02: start_pipeline accepts reference_data_dir and hands it to
+    the background pipeline run, whose kwargs reach _launch_stage.
+    """
+    captured: dict = {}
+
+    async def _fake_run_pipeline(**kwargs):
+        captured.update(kwargs)
+
+    monkeypatch.setattr(pipeline, "_run_pipeline", _fake_run_pipeline)
+
+    reference = str(tmp_path / "reference_data")
+    await pipeline.start_pipeline(
+        input_dir=str(tmp_path / "subjects"),
+        output_dir=str(tmp_path),
+        path_to_graph="graph/path",
+        path_sk_with_hull="sk/path",
+        crop_path=str(tmp_path / "crops"),
+        dataset="DEMO01",
+        models_path=str(tmp_path / "models"),
+        datasets_root=str(tmp_path / "datasets"),
+        reference_data_dir=reference,
+    )
+    await asyncio.sleep(0)
+
+    assert captured.get("reference_data_dir") == reference
+
+
+@pytest.mark.unit
+async def test_snapshots_stage_argv_carries_reference_data_dir(fake_pipeline_dir, tmp_path, recording_runner):
+    """REQ-MCP-SNAPREF-02: start_pipeline's snapshots stage, given reference_data_dir,
+    launches generate_snapshots.py with `--reference_data_dir <value>`.
+    """
+    dataset_root = tmp_path / "DEMO01"
+    reference = str(tmp_path / "reference_data")
+
+    await pipeline._launch_stage(
+        "snapshots",
+        umbrella_output_dir=str(dataset_root),
+        input_dir=str(dataset_root / "derivatives" / "morphologist-6.0" / "subjects"),
+        datasets_root=str(dataset_root),
+        reference_data_dir=reference,
+    )
+
+    assert _argv_value(recording_runner[0]["argv"], "--reference_data_dir") == reference

@@ -145,10 +145,11 @@ Renders sulcal graph meshes, cortical tile masks, and UMAP scatter plots.
 | `umap_only` | bool | no | Render only UMAP scatter plots (requires `embeddings_dir`) |
 | `umap_region` | str | no | Restrict UMAP plot to a specific sulcal region (e.g. `SPoC_left`) |
 | `champollion_data_root` | str | no | Override path to the Champollion data directory (used to resolve tile masks) |
+| `reference_data_dir` | str | no | Dir of pre-trained UMAP artefacts (`umap_{region}_{hemi}.pkl` / `_coords.npy`). Not shipped, no default; without it no UMAP plots are produced |
 
 At least one of `morphologist_dir`, `cortical_tiles_dir`, or `embeddings_dir` must be provided.
 
-UMAP plots require a `reference_data/` dir inside the pipeline — this is bundled with `champollion_pipeline` and needs no configuration.
+UMAP plots need both `embeddings_dir` and `reference_data_dir`. Reference artefacts are not shipped with `champollion_pipeline` (gitignored); obtain them separately or build them with the pipeline's `pixi run generate-umap-reference` task (see the pipeline README "UMAP Visualization" section).
 
 ---
 

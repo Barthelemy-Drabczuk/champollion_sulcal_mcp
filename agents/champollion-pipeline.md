@@ -105,7 +105,7 @@ For **stage-centric** runs, required per stage:
 - **Training (optional, `start_training`)**: `dataset`, `region`; `config_dir` defaults to `<pipeline>/data/<dataset>/derivatives/champollion_V1/configs`; pass `<D>/<dataset>/derivatives/champollion_V1/configs` when the dataset lives outside `<pipeline>/data/`, or the stage-3 `output` configs root if one was set
 - **Stage 4 (embeddings)**: `models_path` (local model dir, `.tar.gz`, URL or HF repo ID), `datasets_root` (dataset root containing `derivatives/`); optional `output` (default `{parent of datasets_root}/{basename of datasets_root}embeddings/`), `cpu`, `overwrite`, `regions`
 - **Stage 5 (combine)**: `embeddings_source` (the stage-4 `output` directory, default `{parent of datasets_root}/{basename of datasets_root}embeddings/`), `output_path`
-- **Stage 6 (snapshots)**: `output_dir`, at least one of: `morphologist_dir`, `cortical_tiles_dir`, `embeddings_dir`
+- **Stage 6 (snapshots)**: `output_dir`, at least one of: `morphologist_dir`, `cortical_tiles_dir`, `embeddings_dir`; UMAP plots additionally need `reference_data_dir` (not shipped, no default — ask the user)
 
 For **streaming** runs, required:
 - `input_dir` (subjects/), `output_dir`, `dataset`, `path_to_graph`, `path_sk_with_hull`
@@ -209,6 +209,7 @@ pixi run python3 src/champollion_pipeline/generate_snapshots.py \
     --morphologist_dir /path/to/data/TESTXX/derivatives/morphologist-6.0/ \
     --cortical_tiles_dir /path/to/data/TESTXX/derivatives/cortical_tiles-2026/crops/2mm/ \
     --embeddings_dir /path/to/data/TESTXX/derivatives/champollion_V1/embeddings/ \
+    --reference_data_dir /path/to/reference_data/ \
     --output_dir /path/to/data/TESTXX/derivatives/champollion_V1/snapshots/
 ```
 
