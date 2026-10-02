@@ -15,6 +15,7 @@ def test_resolve_uses_env(tmp_path, monkeypatch):
 @pytest.mark.unit
 def test_resolve_missing_raises(monkeypatch):
     monkeypatch.delenv("CHAMPOLLION_PIPELINE_DIR", raising=False)
+
     def _raise():
         raise FileNotFoundError("not found")
 
@@ -79,9 +80,7 @@ def test_stage_scripts_exist_in_real_pipeline_checkout(monkeypatch):
     except FileNotFoundError:
         pytest.skip("champollion_pipeline sibling checkout not available")
 
-    missing = [
-        fname for fname in preflight.STAGE_SCRIPTS.values() if not (loc.scripts_dir / fname).is_file()
-    ]
+    missing = [fname for fname in preflight.STAGE_SCRIPTS.values() if not (loc.scripts_dir / fname).is_file()]
     assert missing == [], f"scripts not found under {loc.scripts_dir}: {missing}"
 
 

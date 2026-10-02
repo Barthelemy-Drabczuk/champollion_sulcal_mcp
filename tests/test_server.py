@@ -6,6 +6,7 @@ import pytest
 @pytest.mark.unit
 def test_server_has_13_tools():
     from champollion_sulcal_mcp.server import mcp
+
     # FastMCP 3.x exposes tools via ._tool_manager or similar
     # Try common attribute names
     tool_count = None
@@ -24,4 +25,5 @@ def test_server_has_13_tools():
 @pytest.mark.unit
 def test_server_imports_cleanly():
     import champollion_sulcal_mcp.server  # noqa: F401
+
     assert True

@@ -89,7 +89,9 @@ async def test_get_job_log_cap_at_5000(tmp_output_dir):
 async def test_get_job_log_missing_log_raises_toolerror(tmp_output_dir):
     from fastmcp.exceptions import ToolError
 
-    state = JobState(stage="config", status="succeeded", output_dir=str(tmp_output_dir), log_path="/nonexistent/path.log")
+    state = JobState(
+        stage="config", status="succeeded", output_dir=str(tmp_output_dir), log_path="/nonexistent/path.log"
+    )
     write_job(state)
 
     with pytest.raises(ToolError, match="not available"):

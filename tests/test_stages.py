@@ -30,8 +30,10 @@ async def test_start_morphologist_with_parallel(fake_pipeline_dir, tmp_output_di
 @pytest.mark.unit
 async def test_start_morphologist_missing_pipeline_dir(monkeypatch, tmp_output_dir):
     monkeypatch.delenv("CHAMPOLLION_PIPELINE_DIR", raising=False)
-    monkeypatch.setattr("champollion_sulcal_mcp.preflight.resolve_pipeline_dir",
-                        lambda: (_ for _ in ()).throw(FileNotFoundError("not found")))
+    monkeypatch.setattr(
+        "champollion_sulcal_mcp.preflight.resolve_pipeline_dir",
+        lambda: (_ for _ in ()).throw(FileNotFoundError("not found")),
+    )
     with pytest.raises(ToolError):
         await stages.start_morphologist(input_dir="/abs/input", output_dir=str(tmp_output_dir))
 

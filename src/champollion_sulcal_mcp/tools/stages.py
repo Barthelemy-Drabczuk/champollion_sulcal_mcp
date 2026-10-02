@@ -16,8 +16,13 @@ def _require_absolute(path: str, name: str) -> None:
 
 
 def _job_result(state, stage: str) -> dict:
-    return {"job_id": state.job_id, "status": state.status, "stage": stage,
-            "log_path": state.log_path, "output_dir": state.output_dir}
+    return {
+        "job_id": state.job_id,
+        "status": state.status,
+        "stage": stage,
+        "log_path": state.log_path,
+        "output_dir": state.output_dir,
+    }
 
 
 def _build_env(*, pass_hf_token: bool = False) -> dict:
@@ -154,10 +159,14 @@ async def start_cortical_tiles(
         raise ToolError(f"Script not found: {script}")
 
     argv = [
-        str(loc.python_exe), str(script),
-        input_dir, output_dir,
-        "--path_to_graph", path_to_graph,
-        "--path_sk_with_hull", path_sk_with_hull,
+        str(loc.python_exe),
+        str(script),
+        input_dir,
+        output_dir,
+        "--path_to_graph",
+        path_to_graph,
+        "--path_sk_with_hull",
+        path_sk_with_hull,
     ]
     if sk_qc_path:
         argv += ["--sk_qc_path", sk_qc_path]
@@ -414,17 +423,28 @@ async def start_streaming(
         raise ToolError(f"Script not found: {script}")
 
     argv = [
-        str(loc.python_exe), str(script),
-        input_dir, output_dir,
-        "--dataset", dataset,
-        "--path-to-graph", path_to_graph,
-        "--path-sk-with-hull", path_sk_with_hull,
-        "--n-workers", str(n_workers),
-        "--worker-timeout", str(worker_timeout),
-        "--poll-interval", str(poll_interval),
-        "--dataset-localization", dataset_localization,
-        "--short-name", short_name,
-        "--embeddings-path", embeddings_path,
+        str(loc.python_exe),
+        str(script),
+        input_dir,
+        output_dir,
+        "--dataset",
+        dataset,
+        "--path-to-graph",
+        path_to_graph,
+        "--path-sk-with-hull",
+        path_sk_with_hull,
+        "--n-workers",
+        str(n_workers),
+        "--worker-timeout",
+        str(worker_timeout),
+        "--poll-interval",
+        str(poll_interval),
+        "--dataset-localization",
+        dataset_localization,
+        "--short-name",
+        short_name,
+        "--embeddings-path",
+        embeddings_path,
     ]
     if bids:
         argv.append("--bids")
@@ -439,8 +459,7 @@ async def start_streaming(
 
     if ctx:
         await ctx.info(
-            f"Launching streaming pipeline: {input_dir} → {output_dir} "
-            f"(n_workers={n_workers or 'auto'}, bids={bids})"
+            f"Launching streaming pipeline: {input_dir} → {output_dir} (n_workers={n_workers or 'auto'}, bids={bids})"
         )
 
     state = await runner.launch(
@@ -510,11 +529,16 @@ async def start_training(
     Path(resolved_output_dir).mkdir(parents=True, exist_ok=True)
 
     argv = [
-        str(loc.python_exe), str(script),
-        "--dataset", dataset,
-        "--region", region,
-        "--mode", mode,
-        "--output_dir", resolved_output_dir,
+        str(loc.python_exe),
+        str(script),
+        "--dataset",
+        dataset,
+        "--region",
+        region,
+        "--mode",
+        mode,
+        "--output_dir",
+        resolved_output_dir,
     ]
     if config_dir:
         argv += ["--config-dir", config_dir]
@@ -527,8 +551,7 @@ async def start_training(
 
     if ctx:
         await ctx.info(
-            f"Launching training: dataset={dataset}, region={region}, mode={mode}, "
-            f"output={resolved_output_dir}"
+            f"Launching training: dataset={dataset}, region={region}, mode={mode}, output={resolved_output_dir}"
         )
 
     state = await runner.launch(
