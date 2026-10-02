@@ -100,7 +100,7 @@ async def test_smoke_cancel_running_job(tmp_output_dir):
     )
     assert state.status == "running"
 
-    cancelled = await runner.cancel(str(tmp_output_dir), state.job_id)
+    await runner.cancel(str(tmp_output_dir), state.job_id)
 
     for _ in range(150):
         await asyncio.sleep(0.1)
