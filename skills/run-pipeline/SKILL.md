@@ -65,8 +65,10 @@ Ask for the inputs and outputs of **each stage the user intends to run**. All pa
 └── derivatives/
     ├── morphologist-6.0/
     ├── cortical_tiles-2026/
-    ├── champollion_V1/
-    └── snapshots/
+    └── champollion_V1/
+        ├── configs/
+        ├── embeddings/
+        └── snapshots/
 ```
 
 Use `./data/{dataset}/derivatives/` as the default `output_dir` for all stages. Stage 3's `output` is a configs root (region YAMLs land at `{output}/dataset/{dataset}/`): ask the user whether to override it; if omitted, the pipeline default configs root `<D>/<dataset>/derivatives/champollion_V1/configs` applies (`<D>` = parent of the `<dataset>` directory in `crop_path`).
@@ -335,7 +337,7 @@ For **dry-run**: set `dry_run=True` first — the job log will list all scans th
 | Champollion config | `{output_dir}/champollion_V1/configs/dataset/{dataset}/` |
 | Per-fold embeddings | `{parent of datasets_root}/{basename of datasets_root}embeddings/{region}/full_embeddings.csv` (stage-4 `output` default) |
 | Combined embeddings | `{output_dir}/derivatives/champollion_V1/embeddings/` (56 CSV files; `output_dir` = `start_pipeline`'s dataset root) |
-| Snapshots | `{output_dir}/champollion_V1/snapshots/` |
+| Snapshots | `{output_dir}/derivatives/champollion_V1/snapshots/` (`output_dir` = `start_pipeline`'s dataset root) |
 | Streaming worker logs | `{output_dir}/logs/{scan_id}/worker.log` |
 | Streaming combined | `{output_dir}/combined_embeddings/` |
 

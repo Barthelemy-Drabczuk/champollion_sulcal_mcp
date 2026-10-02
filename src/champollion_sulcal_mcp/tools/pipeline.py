@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 DERIVATIVES_SUBDIR = "derivatives"
 CHAMPOLLION_SUBDIR = "champollion_V1"
 EMBEDDINGS_SUBDIR = "embeddings"
+SNAPSHOTS_SUBDIR = "snapshots"
 
 STAGE_ORDER = ["morphologist", "cortical_tiles", "config", "embeddings", "combine", "snapshots"]
 
@@ -33,6 +34,20 @@ def _compute_combined_embeddings_dir(dataset_root: str) -> str:
     Complexity: O(1).
     """
     return str(Path(dataset_root) / DERIVATIVES_SUBDIR / CHAMPOLLION_SUBDIR / EMBEDDINGS_SUBDIR)
+
+
+def _compute_snapshots_dir(dataset_root: str) -> str:
+    """Return the directory start_pipeline's snapshots stage writes images to.
+
+    Args:
+        dataset_root: start_pipeline's output_dir (dataset root R).
+
+    Returns:
+        str(Path(R) / "derivatives" / "champollion_V1" / "snapshots").
+
+    Complexity: O(1).
+    """
+    return str(Path(dataset_root) / DERIVATIVES_SUBDIR / CHAMPOLLION_SUBDIR / SNAPSHOTS_SUBDIR)
 
 
 async def start_pipeline(
@@ -264,7 +279,7 @@ async def _launch_stage(stage_name: str, umbrella_output_dir: str, **kwargs) -> 
         )
     elif stage_name == "snapshots":
         return await stages.start_snapshots(
-            output_dir=umbrella_output_dir,
+            output_dir=_compute_snapshots_dir(umbrella_output_dir),
             morphologist_dir=kwargs.get("input_dir"),
             embeddings_dir=_compute_combined_embeddings_dir(umbrella_output_dir),
             reference_data_dir=kwargs.get("reference_data_dir"),
