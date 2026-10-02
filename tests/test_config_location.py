@@ -97,14 +97,13 @@ async def test_launch_stage_config_passes_neither_output_nor_external_config(
     assert "--external-config" not in argv
 
 
-# --- REQ-MCP-CFGLOC-02 guards: start_training leaves --config-dir to the caller ---
+# --- start_training leaves --config-dir to the caller when no roots are declared ---
 
 
-async def test_start_training_omits_config_dir_when_not_supplied(training_script, mock_roots, recording_runner):
-    """With no config_dir, argv carries no --config-dir, so train_champollion's default applies."""
-    ctx, root = mock_roots
-    out = root / "models" / "S.C.-sylv."
-    await stages.start_training(dataset="DS01", region="S.C.-sylv.", output_dir=str(out), ctx=ctx)
+async def test_start_training_omits_config_dir_when_not_supplied(training_script, tmp_path, recording_runner):
+    """With no MCP roots and no config_dir, argv carries no --config-dir, so train_champollion's default applies."""
+    out = str(tmp_path / "models" / "S.C.-sylv.")
+    await stages.start_training(dataset="DS01", region="S.C.-sylv.", output_dir=out)
     assert "--config-dir" not in recording_runner[0]["argv"]
 
 

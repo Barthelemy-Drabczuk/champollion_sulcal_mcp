@@ -61,6 +61,22 @@ def _build_env(*, pass_hf_token: bool = False) -> dict:
     return env
 
 
+def _compute_training_derivatives_dir(base: Path, dataset: str) -> Path:
+    """Return the champollion_V1 derivatives dir start_training defaults hang off.
+
+    Args:
+        base: roots[0] when the MCP client declares roots, else the
+            champollion_pipeline root (loc.pipeline_dir).
+        dataset: start_training's dataset argument.
+
+    Returns:
+        Path(base) / "data" / dataset / "derivatives" / "champollion_V1".
+
+    Complexity: O(1).
+    """
+    return Path(base) / "data" / dataset / "derivatives" / "champollion_V1"
+
+
 async def start_morphologist(
     input_dir: str,
     output_dir: str,
@@ -452,10 +468,13 @@ async def start_training(
     """Launch encoder training: train a champollion_V1 self-supervised encoder for one sulcal region.
 
     Dataset configs must exist before calling this tool: run start_config first.
+    When the MCP client declares roots, config_dir defaults to
+    <roots[0]>/data/<dataset>/derivatives/champollion_V1/configs (roots[0] = the
+    first declared root; same base as the output_dir default). Otherwise
     config_dir defaults to <pipeline>/data/<dataset>/derivatives/champollion_V1/configs
-    (<pipeline> = the champollion_pipeline root). Pass config_dir when the dataset
-    lives outside <pipeline>/data/ (use <D>/<dataset>/derivatives/champollion_V1/configs)
-    or when start_config was given an explicit `output` (use that configs root).
+    (<pipeline> = the champollion_pipeline root). Pass config_dir when the configs
+    live elsewhere (use <D>/<dataset>/derivatives/champollion_V1/configs) or when
+    start_config was given an explicit `output` (use that configs root).
     """
     if swf:
         raise ToolError("swf=True is not supported: train_champollion has no soma-workflow mode (REQ-SWF-01).")
@@ -474,14 +493,11 @@ async def start_training(
     if not script.exists():
         raise ToolError(f"Script not found: {script}")
 
-    if output_dir is None and roots:
-        resolved_output_dir = str(
-            roots[0] / "data" / dataset / "derivatives" / "champollion_V1" / "models" / region
-        )
-    else:
-        resolved_output_dir = output_dir or str(
-            loc.pipeline_dir / "data" / dataset / "derivatives" / "champollion_V1" / "models" / region
-        )
+    default_base = roots[0] if roots else loc.pipeline_dir
+    derivatives_dir = _compute_training_derivatives_dir(default_base, dataset)
+    resolved_output_dir = output_dir or str(derivatives_dir / "models" / region)
+    if config_dir is None and roots:
+        config_dir = str(derivatives_dir / "configs")
     validate_within_roots(resolved_output_dir, roots, "output_dir")
     Path(resolved_output_dir).mkdir(parents=True, exist_ok=True)
 
