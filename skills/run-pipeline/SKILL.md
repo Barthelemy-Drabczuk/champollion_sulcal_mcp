@@ -331,8 +331,8 @@ For **dry-run**: set `dry_run=True` first — the job log will list all scans th
 | Morphologist graphs | `{output_dir}/morphologist-*/subjects/` |
 | Sulcal region crops | `{output_dir}/cortical_tiles-*/crops/2mm/` (28 folders) |
 | Champollion config | `{output_dir}/champollion_V1/configs/dataset/{dataset}/` |
-| Per-fold embeddings | `{datasets_root}/champollion_V1/models_cache/Champollion_V1/` |
-| Combined embeddings | `{output_dir}/champollion_V1/embeddings/` (56 CSV files) |
+| Per-fold embeddings | `{parent of datasets_root}/{basename of datasets_root}embeddings/{region}/full_embeddings.csv` (stage-4 `output` default) |
+| Combined embeddings | `{output_dir}/derivatives/champollion_V1/embeddings/` (56 CSV files; `output_dir` = `start_pipeline`'s dataset root) |
 | Snapshots | `{output_dir}/champollion_V1/snapshots/` |
 | Streaming worker logs | `{output_dir}/logs/{scan_id}/worker.log` |
 | Streaming combined | `{output_dir}/combined_embeddings/` |
@@ -343,5 +343,5 @@ Sanity checks:
 ls {output_dir}/cortical_tiles-*/crops/2mm | wc -l
 
 # 56 combined embedding CSVs?
-ls {output_dir}/champollion_V1/embeddings/*.csv | wc -l
+ls {output_dir}/derivatives/champollion_V1/embeddings/*.csv | wc -l
 ```

@@ -15,8 +15,24 @@ from . import stages
 logger = logging.getLogger(__name__)
 
 DERIVATIVES_SUBDIR = "derivatives"
+CHAMPOLLION_SUBDIR = "champollion_V1"
+EMBEDDINGS_SUBDIR = "embeddings"
 
 STAGE_ORDER = ["morphologist", "cortical_tiles", "config", "embeddings", "combine", "snapshots"]
+
+
+def _compute_combined_embeddings_dir(dataset_root: str) -> str:
+    """Return the directory start_pipeline's combine stage writes to and snapshots reads from.
+
+    Args:
+        dataset_root: start_pipeline's output_dir (dataset root R).
+
+    Returns:
+        str(Path(R) / "derivatives" / "champollion_V1" / "embeddings").
+
+    Complexity: O(1).
+    """
+    return str(Path(dataset_root) / DERIVATIVES_SUBDIR / CHAMPOLLION_SUBDIR / EMBEDDINGS_SUBDIR)
 
 
 async def start_pipeline(
@@ -239,12 +255,13 @@ async def _launch_stage(stage_name: str, umbrella_output_dir: str, **kwargs) -> 
         )
         return await stages.start_combine(
             embeddings_source=embeddings_source,
-            output_path=umbrella_output_dir,
+            output_path=_compute_combined_embeddings_dir(umbrella_output_dir),
         )
     elif stage_name == "snapshots":
         return await stages.start_snapshots(
             output_dir=umbrella_output_dir,
             morphologist_dir=kwargs.get("input_dir"),
+            embeddings_dir=_compute_combined_embeddings_dir(umbrella_output_dir),
         )
     else:
         raise ToolError(f"Unknown stage: {stage_name!r}")
