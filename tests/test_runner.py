@@ -9,12 +9,15 @@ from champollion_sulcal_mcp.runner import FOLD_RE
 
 
 @pytest.mark.unit
-@pytest.mark.parametrize("line", [
-    "Fold 3/56",
-    "fold 12 of 56",
-    "Processing fold 1/56",
-    "fold 28 of 56 done",
-])
+@pytest.mark.parametrize(
+    "line",
+    [
+        "Fold 3/56",
+        "fold 12 of 56",
+        "Processing fold 1/56",
+        "fold 28 of 56 done",
+    ],
+)
 def test_fold_regex_matches(line):
     m = FOLD_RE.search(line)
     assert m is not None
@@ -37,12 +40,14 @@ async def test_launch_echo_success(tmp_output_dir):
     for _ in range(30):
         await asyncio.sleep(0.2)
         from champollion_sulcal_mcp.job_store import read_job
+
         s = read_job(str(tmp_output_dir), state.job_id)
         if s.status in ("succeeded", "failed"):
             break
     assert s.status == "succeeded"
     assert s.returncode == 0
     from pathlib import Path
+
     log = Path(s.log_path).read_text()
     assert "hello world" in log
 
@@ -60,6 +65,7 @@ async def test_launch_failure_sets_failed(tmp_output_dir):
     for _ in range(20):
         await asyncio.sleep(0.2)
         from champollion_sulcal_mcp.job_store import read_job
+
         s = read_job(str(tmp_output_dir), state.job_id)
         if s.status in ("succeeded", "failed", "cancelled"):
             break
@@ -86,6 +92,7 @@ async def test_cancel_terminates(tmp_output_dir):
     for _ in range(25):
         await asyncio.sleep(0.5)
         from champollion_sulcal_mcp.job_store import read_job
+
         s = read_job(str(tmp_output_dir), state.job_id)
         if s.ended_at is not None:
             break
@@ -105,6 +112,7 @@ async def test_progress_updates(tmp_output_dir):
     for _ in range(30):
         await asyncio.sleep(0.2)
         from champollion_sulcal_mcp.job_store import read_job
+
         s = read_job(str(tmp_output_dir), state.job_id)
         if s.status == "succeeded":
             break

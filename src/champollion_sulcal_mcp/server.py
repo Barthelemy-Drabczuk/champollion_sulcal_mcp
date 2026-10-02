@@ -19,10 +19,9 @@ async def list_data_root(ctx: Context) -> str:
     listing: dict[str, list[str]] = {}
     for root in roots:
         if root.is_dir():
-            listing[str(root)] = sorted(
-                p.name for p in root.iterdir() if not p.name.startswith(".")
-            )
+            listing[str(root)] = sorted(p.name for p in root.iterdir() if not p.name.startswith("."))
     return json.dumps({"roots": listing})
+
 
 # Stage launchers
 mcp.tool(stages.start_morphologist)

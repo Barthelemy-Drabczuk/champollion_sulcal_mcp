@@ -270,9 +270,7 @@ async def _launch_stage(stage_name: str, umbrella_output_dir: str, **kwargs) -> 
         )
     elif stage_name == "combine":
         datasets_root = kwargs["datasets_root"]
-        embeddings_source = str(
-            Path(datasets_root).parent / (Path(datasets_root).name + "embeddings")
-        )
+        embeddings_source = str(Path(datasets_root).parent / (Path(datasets_root).name + "embeddings"))
         return await stages.start_combine(
             embeddings_source=embeddings_source,
             output_path=_compute_combined_embeddings_dir(umbrella_output_dir),

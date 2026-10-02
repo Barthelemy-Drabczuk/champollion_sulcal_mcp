@@ -18,12 +18,24 @@ def test_write_read_roundtrip(tmp_output_dir):
 @pytest.mark.unit
 def test_list_jobs_sorted(tmp_output_dir):
     jobs = [
-        JobState(stage="morphologist", output_dir=str(tmp_output_dir), log_path="/tmp/a.log",
-                 started_at="2024-01-01T00:00:00+00:00"),
-        JobState(stage="cortical_tiles", output_dir=str(tmp_output_dir), log_path="/tmp/b.log",
-                 started_at="2024-01-03T00:00:00+00:00"),
-        JobState(stage="embeddings", output_dir=str(tmp_output_dir), log_path="/tmp/c.log",
-                 started_at="2024-01-02T00:00:00+00:00"),
+        JobState(
+            stage="morphologist",
+            output_dir=str(tmp_output_dir),
+            log_path="/tmp/a.log",
+            started_at="2024-01-01T00:00:00+00:00",
+        ),
+        JobState(
+            stage="cortical_tiles",
+            output_dir=str(tmp_output_dir),
+            log_path="/tmp/b.log",
+            started_at="2024-01-03T00:00:00+00:00",
+        ),
+        JobState(
+            stage="embeddings",
+            output_dir=str(tmp_output_dir),
+            log_path="/tmp/c.log",
+            started_at="2024-01-02T00:00:00+00:00",
+        ),
     ]
     for j in jobs:
         write_job(j)
@@ -45,6 +57,7 @@ async def test_update_job_atomic(tmp_output_dir):
 @pytest.mark.unit
 def test_jobs_dir_created(tmp_path):
     from champollion_sulcal_mcp.job_store import jobs_dir
+
     out = str(tmp_path / "newout")
     d = jobs_dir(out)
     assert d.exists()

@@ -58,12 +58,15 @@ def recording_runner(monkeypatch):
 
     async def fake_launch(stage, argv, output_dir, cwd, env, args_snapshot):
         from champollion_sulcal_mcp.job_store import JobState
+
         state = JobState(stage=stage, status="running", output_dir=output_dir, log_path="/tmp/fake.log")
         calls.append({"stage": stage, "argv": argv, "output_dir": output_dir})
         from champollion_sulcal_mcp.job_store import write_job
+
         write_job(state)
         return state
 
     from champollion_sulcal_mcp import runner
+
     monkeypatch.setattr(runner, "launch", fake_launch)
     return calls

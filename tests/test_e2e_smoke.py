@@ -55,6 +55,7 @@ async def test_smoke_fold_progress_and_log(tmp_output_dir):
 
     # Log file contains fold lines
     from pathlib import Path
+
     log_contents = Path(current.log_path).read_text()
     assert "Fold 1/3" in log_contents
     assert "Fold 3/3" in log_contents
@@ -99,7 +100,7 @@ async def test_smoke_cancel_running_job(tmp_output_dir):
     )
     assert state.status == "running"
 
-    cancelled = await runner.cancel(str(tmp_output_dir), state.job_id)
+    await runner.cancel(str(tmp_output_dir), state.job_id)
 
     for _ in range(150):
         await asyncio.sleep(0.1)
@@ -131,6 +132,7 @@ async def test_smoke_get_job_log_via_tool(tmp_output_dir):
     assert current.status == "succeeded"
 
     from champollion_sulcal_mcp.tools.jobs import get_job_log
+
     result = await get_job_log(str(tmp_output_dir), state.job_id, tail_lines=3)
     assert len(result["lines"]) == 3
     assert result["lines"][-1] == "line5"

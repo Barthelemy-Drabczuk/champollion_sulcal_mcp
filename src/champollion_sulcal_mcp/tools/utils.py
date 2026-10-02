@@ -16,11 +16,19 @@ STAGE_DESCRIPTIONS = {
 }
 
 TOOL_NAMES = [
-    "start_morphologist", "start_cortical_tiles", "start_config",
-    "start_embeddings", "start_combine", "start_snapshots",
+    "start_morphologist",
+    "start_cortical_tiles",
+    "start_config",
+    "start_embeddings",
+    "start_combine",
+    "start_snapshots",
     "start_pipeline",
-    "get_job_status", "list_jobs", "cancel_job", "get_job_log",
-    "get_pipeline_info", "preflight_check",
+    "get_job_status",
+    "list_jobs",
+    "cancel_job",
+    "get_job_log",
+    "get_pipeline_info",
+    "preflight_check",
 ]
 
 

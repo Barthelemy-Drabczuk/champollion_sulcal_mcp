@@ -28,7 +28,4 @@ def validate_within_roots(path: str, roots: list[Path], param_name: str) -> None
             return
         except ValueError:
             continue
-    raise ToolError(
-        f"{param_name} {path!r} is outside declared roots: "
-        + ", ".join(str(r) for r in roots)
-    )
+    raise ToolError(f"{param_name} {path!r} is outside declared roots: " + ", ".join(str(r) for r in roots))
