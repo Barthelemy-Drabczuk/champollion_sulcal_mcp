@@ -128,3 +128,54 @@ async def test_start_pipeline_hands_labelling_session_to_pipeline_run(monkeypatc
     await asyncio.sleep(0)
 
     assert captured.get("labelling_session") == "0_auto"
+
+
+# --- REQ-MCP-OUTLOC-01 / REQ-MCP-OUTLOC-02: combined-embeddings location (TASK-049) ---
+
+
+def _argv_value(argv: list[str], flag: str) -> str:
+    assert argv.count(flag) == 1, f"expected exactly one {flag} in argv: {argv}"
+    return argv[argv.index(flag) + 1]
+
+
+@pytest.mark.unit
+async def test_combine_argv_output_path_is_derivatives_champollion_v1_embeddings(
+    fake_pipeline_dir, tmp_path, recording_runner
+):
+    """REQ-MCP-OUTLOC-01: start_pipeline's combine stage, for dataset root R,
+    launches put_together_embeddings.py with
+    `--output_path R/derivatives/champollion_V1/embeddings`, not bare R.
+    """
+    dataset_root = tmp_path / "DEMO01"
+
+    await pipeline._launch_stage(
+        "combine",
+        umbrella_output_dir=str(dataset_root),
+        datasets_root=str(dataset_root),
+    )
+
+    argv = recording_runner[0]["argv"]
+    assert _argv_value(argv, "--output_path") == str(dataset_root / "derivatives" / "champollion_V1" / "embeddings")
+
+
+@pytest.mark.unit
+async def test_snapshots_argv_embeddings_dir_matches_combine_output_path(fake_pipeline_dir, tmp_path, recording_runner):
+    """REQ-MCP-OUTLOC-02: start_pipeline's snapshots stage, for dataset root R,
+    launches generate_snapshots.py with
+    `--embeddings_dir R/derivatives/champollion_V1/embeddings` — the same
+    directory the combine stage writes to — so UMAP reads the combined CSVs.
+    """
+    dataset_root = tmp_path / "DEMO01"
+    common = {"umbrella_output_dir": str(dataset_root), "datasets_root": str(dataset_root)}
+
+    await pipeline._launch_stage("combine", **common)
+    await pipeline._launch_stage(
+        "snapshots",
+        input_dir=str(dataset_root / "derivatives" / "morphologist-6.0" / "subjects"),
+        **common,
+    )
+
+    combine_argv, snapshots_argv = recording_runner[0]["argv"], recording_runner[1]["argv"]
+    expected = str(dataset_root / "derivatives" / "champollion_V1" / "embeddings")
+    assert _argv_value(snapshots_argv, "--embeddings_dir") == expected
+    assert _argv_value(snapshots_argv, "--embeddings_dir") == _argv_value(combine_argv, "--output_path")
