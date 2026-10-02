@@ -103,8 +103,8 @@ For **stage-centric** runs, required per stage:
 - **Stage 2 (cortical_tiles)**: `input_dir` (Morphologist subjects/), `output_dir`, `path_to_graph`, `path_sk_with_hull`
 - **Stage 3 (config)**: `crop_path` (crops/2mm/ from stage 2), `dataset` name, optional `output` (a configs root: ask the user whether to override; default `<D>/<dataset>/derivatives/champollion_V1/configs`, `<D>` = parent of the `<dataset>` directory in `crop_path`)
 - **Training (optional, `start_training`)**: `dataset`, `region`; `config_dir` defaults to `<pipeline>/data/<dataset>/derivatives/champollion_V1/configs`; pass `<D>/<dataset>/derivatives/champollion_V1/configs` when the dataset lives outside `<pipeline>/data/`, or the stage-3 `output` configs root if one was set
-- **Stage 4 (embeddings)**: `models_path`, `dataset_localization`, `datasets_root`, `short_name`
-- **Stage 5 (combine)**: `embeddings_subpath` (pattern: `{short_name}_random_embeddings/full_embeddings.csv`), `output_path`
+- **Stage 4 (embeddings)**: `models_path` (local model dir, `.tar.gz`, URL or HF repo ID), `datasets_root` (dataset root containing `derivatives/`); optional `output` (default `{parent of datasets_root}/{basename of datasets_root}embeddings/`), `cpu`, `overwrite`, `regions`
+- **Stage 5 (combine)**: `embeddings_source` (the stage-4 `output` directory, default `{parent of datasets_root}/{basename of datasets_root}embeddings/`), `output_path`
 - **Stage 6 (snapshots)**: `output_dir`, at least one of: `morphologist_dir`, `cortical_tiles_dir`, `embeddings_dir`
 
 For **streaming** runs, required:
@@ -145,10 +145,10 @@ When a job fails:
 
 1. Call `get_job_log(output_dir, job_id)` — read the full log
 2. Look for known error patterns:
-   - `IndexError: list index out of range` → `datasets_root` does not contain a recognized dataset layout; verify directory structure
+   - `IndexError: list index out of range` → model folder under `models_path` is missing both `logs/lightning_logs/version_0/checkpoints/*.ckpt` and `logs/best_model_weights.pt`; re-fetch or point at a complete model set (see debug reference for details)
    - `No module named` → pixi environment not activated; check `preflight_check`
    - `FileNotFoundError` on `.arg` → wrong `path_to_graph`; verify with `ls {subjects_dir}/{subject}/{path_to_graph}/`
-   - `CUDA out of memory` → use `cpu=True` or reduce `nb_jobs`
+   - `CUDA out of memory` → use `cpu=True` (slower but avoids OOM) or free the GPU from other processes; `start_embeddings` has no job-count option (regions run one at a time)
    - `timed out after Ns waiting` (streaming) → Morphologist graphs not ready; increase `worker_timeout` or check upstream
    - `cortical_tiles failed with code` → check cortical_tiles log; often a bad `path_sk_with_hull`
 3. Report the root cause and exact fix
@@ -173,7 +173,7 @@ These are the exact underlying script invocations the MCP tools wrap. Use them t
 
 **Stage 2 — cortical_tiles:**
 ```bash
-pixi run python3 src/run_cortical_tiles.py \
+pixi run python3 src/champollion_pipeline/run_cortical_tiles.py \
     /path/to/data/TESTXX/derivatives/morphologist-6.0/subjects \
     /path/to/data/TESTXX/derivatives/ \
     --path_to_graph "t1mri/default_acquisition/default_analysis/folds/3.1" \
@@ -183,29 +183,29 @@ pixi run python3 src/run_cortical_tiles.py \
 **Stage 3 — config:**
 ```bash
 # configs land in the default configs root /path/to/data/TESTXX/derivatives/champollion_V1/configs
-pixi run python3 src/generate_champollion_config.py \
+pixi run python3 src/champollion_pipeline/generate_champollion_config.py \
     /path/to/data/TESTXX/derivatives/cortical_tiles-2026/crops/2mm \
     --dataset TESTXX
 ```
 
 **Stage 4 — embeddings:**
 ```bash
-pixi run python3 src/generate_embeddings.py \
-    <models_path> local <datasets_root> <short_name> \
-    --embeddings_only
+# embeddings land in /path/to/data/TESTXXembeddings/<region>/full_embeddings.csv (override with --output)
+pixi run python3 src/champollion_pipeline/generate_embeddings.py \
+    <models_path> /path/to/data/TESTXX
 ```
+Optional: `--cpu`, `--overwrite`, `--regions R1 R2 ...`, `--output DIR`, `--masks`, `--masks-version`, `--cortical_version`, `--run-cka`.
 
 **Stage 5 — combine:**
 ```bash
-pixi run python3 src/put_together_embeddings.py \
-    --path_models /path/to/data/TESTXX/derivatives/champollion_V1/models_cache/Champollion_V1/ \
-    --embeddings_subpath my_run_random_embeddings/full_embeddings.csv \
+pixi run python3 src/champollion_pipeline/put_together_embeddings.py \
+    /path/to/data/TESTXXembeddings \
     --output_path /path/to/data/TESTXX/derivatives/champollion_V1/embeddings/
 ```
 
 **Stage 6 — snapshots:**
 ```bash
-pixi run python3 src/generate_snapshots.py \
+pixi run python3 src/champollion_pipeline/generate_snapshots.py \
     --morphologist_dir /path/to/data/TESTXX/derivatives/morphologist-6.0/ \
     --cortical_tiles_dir /path/to/data/TESTXX/derivatives/cortical_tiles-2026/crops/2mm/ \
     --embeddings_dir /path/to/data/TESTXX/derivatives/champollion_V1/embeddings/ \
@@ -213,6 +213,7 @@ pixi run python3 src/generate_snapshots.py \
 ```
 
 > **CLI-only flags (not exposed via MCP):** `--input-types` (default `skeleton foldlabel`), `--with-distbottom` (opt-in), `--skip-distbottom` (deprecated no-op) (stage 2). Do not attempt to pass these.
+> **CLI-only flags (not exposed via MCP):** `--profiling`, `--no-cache` (force archive re-extraction / HuggingFace re-download), `--legacy` (read crops from `derivatives/deep_folding-2025/crops/2mm/`) (stage 4). Do not attempt to pass these.
 
 ---
 
@@ -220,7 +221,7 @@ pixi run python3 src/generate_snapshots.py \
 
 - Always call `preflight_check()` first
 - Never guess or invent paths — ask the user
-- Streaming mode always uses `embeddings_only=True` (training cannot be parallelised per-scan)
+- Streaming runs stages 2–4 per scan plus one final combine and never trains (training aggregates all subjects); `start_streaming` has no training or `embeddings_only` option
 - BIDS datasets need `bids=True` passed through all stages
 - `HF_TOKEN` must be in the MCP server's environment to download from HuggingFace
 - Do not mix streaming mode with soma-workflow

@@ -33,6 +33,8 @@ Extracts 28 standardized sulcal region crops from Morphologist's graphs.
 | `njobs` | int | no | CPU cores (default: auto) |
 | `masks` | str | no | Mask version tag override (e.g. `canonical_25`) |
 | `regions` | list[str] | no | Restrict to a subset of the 28 sulcal regions (space-separated in CLI; list here) |
+| `labelling_session` | str | no | Morphologist labelling session whose labelled graphs locate the ventricle for whole-brain removal (default: `deepcnn_session_auto`) |
+| `overwrite` | bool | no | Re-generate crops even if they already exist for this mask version |
 
 Output: `{output_dir}/cortical_tiles-{YEAR}/crops/2mm/` — 28 region folders.
 
@@ -89,40 +91,40 @@ Output: `{output_dir}/` — Hydra run directory containing the trained model che
 
 ## Stage 4 — `start_embeddings`
 
-Runs inference across 56 model folds (28 regions × 2 hemispheres). This is the longest stage.
+Runs inference for every region model in `models_path` (56 for the full Champollion_V1 set: 28 regions × 2 hemispheres), one region after another. This is the longest stage.
 
 | Parameter | Type | Required | Notes |
 |-----------|------|----------|-------|
-| `models_path` | str | yes | Local dir, `.tar.gz` archive, or HF repo ID (`neurospin/Champollion_V1`) |
-| `dataset_localization` | str | yes | Use `local` for local datasets |
-| `datasets_root` | str | yes | Absolute path to the dataset derivatives root |
-| `short_name` | str | yes | Run tag (e.g. `run01`). Used in output path names |
-| `embeddings_only` | bool | no | Skip classifier training (default: `true`) |
+| `models_path` | str | yes | Local directory of per-region model folders, `.tar.gz` archive, URL, or HF repo ID (`neurospin/Champollion_V1`) |
+| `datasets_root` | str | yes | Absolute path to the dataset root — the directory that contains `derivatives/` (e.g. `/data/TESTXX`). Crops are read from `{datasets_root}/derivatives/{cortical_version}/crops/{masks}/2mm/` |
 | `cpu` | bool | no | Force CPU (disable CUDA) |
-| `overwrite` | bool | no | Re-run and overwrite existing embeddings |
-| `nb_jobs` | int | no | Parallel jobs |
-| `labels` | list[str] | no | Labels for classifiers (default: `['Sex']`) |
-| `datasets` | list[str] | no | Dataset names to process (default: all found in `datasets_root`) |
+| `overwrite` | bool | no | Recompute regions whose `full_embeddings.csv` already exists (default: they are skipped) |
+| `masks` | str | no | Mask version used as the crops subdirectory (default: `canonical_25`) |
+| `masks_version` | str | no | Mask version subfolder to download from HuggingFace (e.g. `canonical_25`); ignored when `models_path` is a local directory |
+| `output` | str | no | Output base directory. Default: `{parent of datasets_root}/{basename of datasets_root}embeddings/` (e.g. `/data/TESTXX` → `/data/TESTXXembeddings/`) |
+| `subjects` | str | no | Deprecated and ignored: each region reads its subject list from the `{side}skeleton_subject.csv` next to its skeleton |
+| `regions` | list[str] | no | Restrict to these region model names (e.g. `SCsylv_left`). Default: every region found in `models_path` |
+| `run_cka` | bool | no | Run the CKA coherence test after embeddings (results in `{output}/cka_results/`) |
+| `cortical_version` | str | no | Derivatives folder that holds the crops (default: `cortical_tiles-2026`) |
 
-> **CLI-only flags (not exposed via MCP):** `--split` (embedding split strategy), `--classifier_name`. Use the MCP parameters above; do not attempt to pass these.
+> **CLI-only flags (not exposed via MCP):** `--profiling` (cProfile), `--no-cache` (force archive re-extraction / HuggingFace re-download), `--legacy` (read crops from `derivatives/deep_folding-2025/crops/2mm/`). Do not attempt to pass these through the MCP tool.
 
 **HF_TOKEN**: Set in env before starting the MCP server if downloading from HuggingFace.
 
-Output: `{datasets_root}/champollion_V1/models_cache/Champollion_V1/*/` — 56 fold subdirectories, each with `{short_name}_random_embeddings/full_embeddings.csv`.
+Output: `{output}/{region}/full_embeddings.csv` — one folder per region model (56 for the full set). Default `{output}`: `{parent of datasets_root}/{basename of datasets_root}embeddings/`. Downloaded or extracted models are cached under `<pipeline>/data/{datasets_root without its leading /}/derivatives/champollion_V1/models_cache/` (`<pipeline>` = champollion_pipeline root).
 
 ---
 
 ## Stage 5 — `start_combine`
 
-Collects 56 `full_embeddings.csv` files into a single flat directory.
+Copies every per-region `full_embeddings.csv` produced by stage 4 into a single flat directory.
 
 | Parameter | Type | Required | Notes |
 |-----------|------|----------|-------|
-| `embeddings_subpath` | str | yes | Relative path within each fold dir **including filename**. Pattern: `{short_name}_random_embeddings/full_embeddings.csv` |
-| `output_path` | str | yes | Target directory for the 56 collected CSVs |
-| `path_models` | str | no | Override models cache dir (default: auto-detected) |
+| `embeddings_source` | str | yes | Absolute path to the stage-4 output directory (one `{region}/full_embeddings.csv` per region): the `output` given to `start_embeddings`, default `{parent of datasets_root}/{basename of datasets_root}embeddings/` |
+| `output_path` | str | yes | Directory for the collected CSVs (created if missing) |
 
-Output: `{output_path}/*.csv` — 56 files, one per region+hemisphere.
+Output: `{output_path}/{region}_embeddings.csv` — one file per region folder of `embeddings_source` that holds a `full_embeddings.csv`; regions without one are skipped with a `[skip]` log line. Zero files copied is logged as a warning, not a failure.
 
 ---
 
@@ -142,6 +144,7 @@ Renders sulcal graph meshes, cortical tile masks, and UMAP scatter plots.
 | `tiles_only` | bool | no | Render only cortical tile mask images (requires `cortical_tiles_dir`) |
 | `umap_only` | bool | no | Render only UMAP scatter plots (requires `embeddings_dir`) |
 | `umap_region` | str | no | Restrict UMAP plot to a specific sulcal region (e.g. `SPoC_left`) |
+| `champollion_data_root` | str | no | Override path to the Champollion data directory (used to resolve tile masks) |
 
 At least one of `morphologist_dir`, `cortical_tiles_dir`, or `embeddings_dir` must be provided.
 
@@ -151,7 +154,7 @@ UMAP plots require a `reference_data/` dir inside the pipeline — this is bundl
 
 ## Streaming — `start_streaming`
 
-Scan-centric parallel runner (Strategy 2). Spawns N workers, one per `ScanId`, each running stages 2–4 sequentially with file-presence barriers. Stage 5 (combine) runs once after all workers drain. **Always runs in `embeddings_only` mode** — training requires all subjects and cannot be parallelised per scan.
+Scan-centric parallel runner (Strategy 2). Spawns N workers, one per `ScanId`, each running stages 2–4 sequentially with file-presence barriers. Stage 5 (combine) runs once after all workers drain. Training is not available in the streaming pipeline — training aggregates all subjects and cannot be parallelised per scan.
 
 | Parameter | Type | Required | Notes |
 |-----------|------|----------|-------|

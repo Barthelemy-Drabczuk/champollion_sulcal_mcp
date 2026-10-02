@@ -109,7 +109,7 @@ IndexError: list index out of range
 RuntimeError: CUDA out of memory
 torch.cuda.OutOfMemoryError
 ```
-**Fix:** Use `cpu=True` to run on CPU, or reduce `nb_jobs`. CPU mode is slower but reliable.
+**Fix:** Use `cpu=True` to run on CPU (slower but reliable), or free the GPU from other processes. `start_embeddings` has no job-count option: regions are embedded one at a time.
 
 ### HuggingFace download failure
 ```

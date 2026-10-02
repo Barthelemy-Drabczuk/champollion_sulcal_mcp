@@ -27,24 +27,24 @@ Two execution strategies are available:
 | **Scan-centric streaming** | `start_streaming` | Online/incremental scenarios; subjects arrive progressively |
 
 - **Stage-centric**: runs each stage across all subjects before moving to the next. Supports all 6 stages including training.
-- **Scan-centric streaming**: spawns N workers, each owning one scan (ScanId), running stages 2–4 sequentially with file-presence barriers. Stage 5 (combine) runs once after all workers drain. **Requires `embeddings_only` mode** — training cannot be parallelised per-scan.
+- **Scan-centric streaming**: spawns N workers, each owning one scan (ScanId), running stages 2–4 sequentially with file-presence barriers. Stage 5 (combine) runs once after all workers drain. Training is not available — training aggregates all subjects and cannot be parallelised per-scan.
 
 If the user mentions "streaming", "scan by scan", "incremental", "subjects arriving progressively", or "one worker per scan" → use `start_streaming`.
 
 **B. Serial or parallel? (stage-centric only)**
 
-Only stages 1, 2, and 4 support intra-stage parallelism. Stages 3, 5, and 6 are always single-threaded.
+Only stages 1 and 2 support intra-stage parallelism. Stage 4 embeds one region at a time (GPU by default). Stages 3, 5, and 6 are always single-threaded.
 
 | Stage | Serial | Parallel option |
 |-------|--------|----------------|
 | 1 — Morphologist | default | `parallel=True` → soma-workflow (Neurospin cluster only); requires `soma_workflow_gui` configured first |
 | 2 — Cortical tiles | default | `njobs=N` → multi-CPU (default: auto) |
 | 3 — Config | always | — |
-| 4 — Embeddings | `cpu=True` | GPU by default; `nb_jobs=N` for parallel CPU jobs |
+| 4 — Embeddings | always (one region at a time) | — (GPU by default; `cpu=True` forces CPU) |
 | 5 — Combine | always | — |
 | 6 — Snapshots | always | — |
 
-If parallel: ask how many cores (for stages 2 and 4), or confirm soma-workflow is configured (for stage 1).
+If parallel: ask how many cores (for stage 2), or confirm soma-workflow is configured (for stage 1).
 
 **C. Full pipeline or individual stages? (stage-centric only)**
 
@@ -110,14 +110,16 @@ Extracts 28 standardized sulcal region crops from the graphs.
 |-----------|-------------|
 | `sk_qc_path` | TSV file with `participant_id` and `qc` (0/1) columns to filter subjects |
 | `njobs` | Number of CPU cores (default: auto) |
+| `masks` | Mask version tag override (e.g. `canonical_25`) |
+| `regions` | Restrict to a subset of the 28 sulcal regions (list of region names) |
+| `labelling_session` | Morphologist labelling session used to locate the ventricle for whole-brain removal (default: `deepcnn_session_auto`) |
+| `overwrite` | `True` to re-generate crops that already exist for this mask version |
 
-Less common options (ask only if user requests customisation):
+Less common options (CLI only, not exposed via MCP; ask only if user requests customisation):
 - `--region-file` — custom sulcal region configuration file
 - `--input-types` — restrict generated input types (e.g. `skeleton foldlabel extremities`); default: `skeleton foldlabel` (extremities only on request)
 - `--with-distbottom` — generate distbottom crops (off by default; unused by champollion_V1 inference); mutually exclusive with the deprecated `--skip-distbottom`
 - `--skip-distbottom` — deprecated no-op kept for backward compatibility (distbottom is already skipped by default)
-- `--masks` — mask version tag override (e.g. `canonical_25`)
-- `--regions` — restrict to a subset of the 28 sulcal regions (space-separated)
 
 > Note: `input_dir` is read-only safe — the script never writes to it.
 
@@ -174,39 +176,42 @@ local directory supplied via `config_dir`.
 ---
 
 ### Stage 4 — Embeddings
-Runs inference across all 56 model folds (28 regions × 2 hemispheres).
+Runs inference for every region model in `models_path` (56 for the full Champollion_V1 set: 28 regions × 2 hemispheres), one region after another.
 
 **Ask:**
 | Parameter | Description |
 |-----------|-------------|
-| `models_path` | Local directory, `.tar.gz` archive, HuggingFace repo ID (`neurospin/Champollion_V1`), or URL |
-| `dataset_localization` | Always `local` for local datasets |
-| `datasets_root` | Absolute path to the dataset derivatives root (e.g. `/data/TESTXX/derivatives/`) |
-| `short_name` | Run tag (e.g. `run01`) — used in output folder names; use different values to avoid overwriting past runs |
+| `models_path` | Local directory of per-region model folders, `.tar.gz` archive, HuggingFace repo ID (`neurospin/Champollion_V1`), or URL |
+| `datasets_root` | Absolute path to the dataset root — the directory that contains `derivatives/` (e.g. `/data/TESTXX`). Crops are read from `{datasets_root}/derivatives/cortical_tiles-2026/crops/canonical_25/2mm/` by default |
 
 **Optional:**
 | Parameter | Description |
 |-----------|-------------|
-| `embeddings_only` | `True` to skip classifier training (default: `True`) |
+| `output` | Output base directory; default `{parent of datasets_root}/{basename of datasets_root}embeddings/` (e.g. `/data/TESTXXembeddings/`). Use a different directory to keep a past run |
 | `cpu` | `True` to force CPU (disables CUDA; slower but avoids OOM) |
-| `nb_jobs` | Parallel jobs for CPU mode |
-| `overwrite` | `True` to recompute and overwrite existing embeddings |
+| `overwrite` | `True` to recompute regions whose `full_embeddings.csv` already exists (default: they are skipped) |
+| `regions` | Restrict to these region model names (e.g. `["SCsylv_left"]`); default: every region in `models_path` |
+| `masks` | Crops mask subdirectory (default: `canonical_25`) |
+| `cortical_version` | Derivatives folder holding the crops (default: `cortical_tiles-2026`) |
+| `masks_version` | Mask version subfolder to download from HuggingFace; ignored for a local `models_path` |
+| `run_cka` | `True` to run the CKA coherence test after embeddings |
 
-> Models are cached at `{datasets_root}/champollion_V1/models_cache/`. On subsequent runs, pass the cached path directly as `models_path` to skip HuggingFace update checks.
+> `subjects` is still accepted but deprecated and ignored by the pipeline.
+
+> Downloaded or extracted models are cached under `<pipeline>/data/{datasets_root without its leading /}/derivatives/champollion_V1/models_cache/` (`<pipeline>` = champollion_pipeline root). On later runs, pass a local model directory as `models_path` to skip HuggingFace update checks.
 
 > **HF_TOKEN**: Must be set in the MCP server's environment at startup if downloading from HuggingFace.
 
 ---
 
 ### Stage 5 — Combine
-Collects all 56 per-fold `full_embeddings.csv` files into a single flat directory.
+Copies every per-region `full_embeddings.csv` produced by stage 4 into a single flat directory.
 
 **Ask:**
 | Parameter | Description |
 |-----------|-------------|
-| `embeddings_subpath` | Relative path inside each model fold dir **including filename**. Pattern: `{short_name}_random_embeddings/full_embeddings.csv` (replace `random` with the `split` value used in stage 4, default: `random`) |
-| `output_path` | Directory for the 56 collected CSVs (e.g. `{output_dir}/champollion_V1/embeddings/`) |
-| `path_models` | (Optional) Override for the models cache dir (`{datasets_root}/champollion_V1/models_cache/Champollion_V1/`) |
+| `embeddings_source` | Stage-4 output directory (one `{region}/full_embeddings.csv` per region): the `output` given to stage 4, default `{parent of datasets_root}/{basename of datasets_root}embeddings/` |
+| `output_path` | Directory for the collected CSVs, written as `{region}_embeddings.csv` (e.g. `{output_dir}/champollion_V1/embeddings/`) |
 
 ---
 
@@ -265,18 +270,24 @@ Scan-centric parallel runner: N workers, one per scan, each running stages 2–4
 
 ```python
 start_pipeline(
-  input_dir=<stage 1 input dir>,
-  output_dir=<derivatives root>,
+  input_dir=<raw T1 NIfTI dir (stage 1 input)>,
+  output_dir=<dataset root R: Morphologist writes here, cortical_tiles writes R/derivatives>,
+  path_to_graph=<relative path to the .arg graph, e.g. t1mri/default_acquisition/default_analysis/folds/3.1>,
+  path_sk_with_hull=<relative path to the skeleton dir, e.g. t1mri/default_acquisition/default_analysis/segmentation>,
+  crop_path=<crops/2mm dir that stage 2 produces under R/derivatives/cortical_tiles-*/ (stage 3 input)>,
   dataset=<dataset name>,
   models_path=<models path or HF repo>,
-  short_name=<run tag>,
+  datasets_root=<dataset root containing derivatives/ (stage 4 input), normally R>,
   skip_stages=["morphologist", ...],         # omit if starting fresh
   parallel=<True/False>,                     # stage 1 soma-workflow
   njobs=<N>,                                 # stage 2 CPU cores
-  nb_jobs=<N>,                               # stage 4 CPU jobs
+  sk_qc_path=<QC TSV>,                       # optional, stage 2 subject filter
+  labelling_session=<session>,               # optional, stage 2 (default deepcnn_session_auto)
   cpu=<True/False>,                          # stage 4 GPU → CPU
 )
 ```
+
+`start_pipeline` runs stage 4 with its defaults apart from `cpu`. For any other stage-4 option (`output`, `regions`, `overwrite`, ...) run the stages individually.
 
 ### Individual stages
 
