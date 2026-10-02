@@ -71,7 +71,12 @@ Ask for the inputs and outputs of **each stage the user intends to run**. All pa
         └── snapshots/
 ```
 
-Use `./data/{dataset}/derivatives/` as the default `output_dir` for all stages. Stage 3's `output` is a configs root (region YAMLs land at `{output}/dataset/{dataset}/`): ask the user whether to override it; if omitted, the pipeline default configs root `<D>/<dataset>/derivatives/champollion_V1/configs` applies (`<D>` = parent of the `<dataset>` directory in `crop_path`).
+Default `output_dir` per tool (each tool appends its own subfolders, so the values differ):
+- `start_pipeline`: `./data/{dataset}/` (the dataset root R)
+- `start_morphologist`: `./data/{dataset}/` (the dataset root — `morphologist-cli` appends `derivatives/morphologist-6.0/subjects/`)
+- `start_cortical_tiles`: `./data/{dataset}/derivatives/` (the derivatives dir — crops land in `cortical_tiles-2026/crops/canonical_25/2mm/` under it)
+- `start_snapshots`: `./data/{dataset}/derivatives/champollion_V1/snapshots/` (images are written straight into it)
+- `start_config` takes no `output_dir`: its `output` is a configs root (region YAMLs land at `{output}/dataset/{dataset}/`); ask the user whether to override it; if omitted, the pipeline default configs root `<D>/<dataset>/derivatives/champollion_V1/configs` applies (`<D>` = parent of the `<dataset>` directory in `crop_path`).
 
 **Default `path_to_graph`**:
 - Non-BIDS: `t1mri/default_acquisition/default_analysis/folds/3.1`
@@ -86,7 +91,7 @@ Generates sulcal graphs (`.arg` files) from T1 NIfTI images.
 | Parameter | Description |
 |-----------|-------------|
 | `input_dir` | Directory containing the raw T1 NIfTI files (`.nii.gz`) |
-| `output_dir` | Root output directory — Morphologist writes to `{output_dir}/morphologist-{version}/subjects/` |
+| `output_dir` | The dataset root (e.g. `./data/{dataset}/`) — Morphologist writes to `{output_dir}/derivatives/morphologist-{version}/subjects/` |
 
 **Optional:**
 | Parameter | Description |
@@ -102,8 +107,8 @@ Extracts 28 standardized sulcal region crops from the graphs.
 **Ask:**
 | Parameter | Description |
 |-----------|-------------|
-| `input_dir` | Morphologist `subjects/` directory (from stage 1: `{output_dir}/morphologist-{version}/subjects/`) |
-| `output_dir` | Derivatives parent directory — writes to `{output_dir}/cortical_tiles-{YEAR}/crops/2mm/` |
+| `input_dir` | Morphologist `subjects/` directory (from stage 1: `{output_dir}/derivatives/morphologist-{version}/subjects/`, `output_dir` = stage 1's dataset root) |
+| `output_dir` | The derivatives directory (`<dataset root>/derivatives/`) — writes to `{output_dir}/cortical_tiles-{YEAR}/crops/{masks}/2mm/` (`{masks}` = the `masks` parameter, default `canonical_25`) |
 | `path_to_graph` | Relative path pattern to the `.arg` graph inside each subject folder. Supports `*` wildcards. Common value: `t1mri/default_acquisition/default_analysis/folds/3.1` |
 | `path_sk_with_hull` | Relative path to skeleton directory inside each subject folder. Common value: `t1mri/default_acquisition/default_analysis/segmentation` |
 
@@ -133,7 +138,7 @@ Generates dataset YAML configuration files (`reference.yaml`, `local.yaml`).
 **Ask:**
 | Parameter | Description |
 |-----------|-------------|
-| `crop_path` | Path to the `crops/2mm/` directory from stage 2: `{output_dir}/cortical_tiles-{YEAR}/crops/2mm` |
+| `crop_path` | Path to the `crops/{masks}/2mm/` directory from stage 2: `<stage-2 output_dir>/cortical_tiles-{YEAR}/crops/{masks}/2mm` (default `<dataset root>/derivatives/cortical_tiles-2026/crops/canonical_25/2mm`) |
 | `dataset` | Short dataset name (e.g. `COHORT_XX`) |
 | `output` | Configs root (region YAMLs land at `{output}/dataset/{dataset}/`). Ask the user whether to override it; if omitted, the default configs root is `<D>/<dataset>/derivatives/champollion_V1/configs` (`<D>` = parent of the `<dataset>` directory in `crop_path`). Never point it at a `dataset/{dataset}` subdirectory. |
 
@@ -229,8 +234,8 @@ Then ask which snapshot types they want (at least one source directory is requir
 
 | Ask if... | Parameter | Description |
 |-----------|-----------|-------------|
-| Sulcal graph images wanted | `morphologist_dir` | Morphologist output directory (e.g. `{output_dir}/morphologist-*/`) |
-| Tile mask images wanted | `cortical_tiles_dir` | `crops/2mm/` directory from stage 2 |
+| Sulcal graph images wanted | `morphologist_dir` | Morphologist output directory (e.g. `<dataset root>/derivatives/morphologist-*/`) |
+| Tile mask images wanted | `cortical_tiles_dir` | `crops/{masks}/2mm/` directory from stage 2 (default `<dataset root>/derivatives/cortical_tiles-2026/crops/canonical_25/2mm/`) |
 | UMAP scatter plots wanted | `embeddings_dir` | Combined embeddings directory from stage 5 |
 | UMAP scatter plots wanted | `reference_data_dir` | Pre-trained UMAP reference dir (not shipped, no default — ask the user where it lives) |
 
@@ -277,7 +282,7 @@ start_pipeline(
   output_dir=<dataset root R: Morphologist writes here, cortical_tiles writes R/derivatives>,
   path_to_graph=<relative path to the .arg graph, e.g. t1mri/default_acquisition/default_analysis/folds/3.1>,
   path_sk_with_hull=<relative path to the skeleton dir, e.g. t1mri/default_acquisition/default_analysis/segmentation>,
-  crop_path=<crops/2mm dir that stage 2 produces under R/derivatives/cortical_tiles-*/ (stage 3 input)>,
+  crop_path=<crops/canonical_25/2mm dir that stage 2 produces under R/derivatives/cortical_tiles-*/ (stage 3 input)>,
   dataset=<dataset name>,
   models_path=<models path or HF repo>,
   datasets_root=<dataset root containing derivatives/ (stage 4 input), normally R>,
@@ -332,9 +337,9 @@ For **dry-run**: set `dry_run=True` first — the job log will list all scans th
 
 | Stage | Output path |
 |-------|-------------|
-| Morphologist graphs | `{output_dir}/morphologist-*/subjects/` |
-| Sulcal region crops | `{output_dir}/cortical_tiles-*/crops/2mm/` (28 folders) |
-| Champollion config | `{output_dir}/champollion_V1/configs/dataset/{dataset}/` |
+| Morphologist graphs | `{output_dir}/derivatives/morphologist-*/subjects/` (`output_dir` = `start_pipeline`'s dataset root) |
+| Sulcal region crops | `{output_dir}/derivatives/cortical_tiles-*/crops/canonical_25/2mm/` (28 folders; `canonical_25` is the default `masks` version — the folder follows `masks` when it is set; `start_pipeline` never sets it) |
+| Champollion config | `{output_dir}/derivatives/champollion_V1/configs/dataset/{dataset}/` (`start_config`'s default configs root; assumes the dataset root's basename is `{dataset}`) |
 | Per-fold embeddings | `{parent of datasets_root}/{basename of datasets_root}embeddings/{region}/full_embeddings.csv` (stage-4 `output` default) |
 | Combined embeddings | `{output_dir}/derivatives/champollion_V1/embeddings/` (56 CSV files; `output_dir` = `start_pipeline`'s dataset root) |
 | Snapshots | `{output_dir}/derivatives/champollion_V1/snapshots/` (`output_dir` = `start_pipeline`'s dataset root) |
@@ -344,7 +349,7 @@ For **dry-run**: set `dry_run=True` first — the job log will list all scans th
 Sanity checks:
 ```bash
 # 28 sulcal region folders?
-ls {output_dir}/cortical_tiles-*/crops/2mm | wc -l
+ls {output_dir}/derivatives/cortical_tiles-*/crops/canonical_25/2mm | wc -l
 
 # 56 combined embedding CSVs?
 ls {output_dir}/derivatives/champollion_V1/embeddings/*.csv | wc -l

@@ -11,11 +11,11 @@ Calls `morphologist-cli` to generate sulcal graphs (`.arg` files) from T1 NIfTI 
 | Parameter | Type | Required | Notes |
 |-----------|------|----------|-------|
 | `input_dir` | str | yes | Directory of T1 NIfTI files (`.nii.gz`) |
-| `output_dir` | str | yes | Derivatives root; writes to `morphologist-*/` subdirectory |
+| `output_dir` | str | yes | The dataset root (e.g. `./data/{dataset}/`); `morphologist-cli` writes to `derivatives/morphologist-{version}/subjects/` under it |
 | `parallel` | bool | no | Enable soma-workflow parallel scheduling (Neurospin cluster) |
 | `enable_sulcal_recognition` | bool | no | Run sulcal labeling (slower, not required for embeddings) |
 
-Output: `{output_dir}/morphologist-{version}/subjects/{subject}/`
+Output: `{output_dir}/derivatives/morphologist-{version}/subjects/{subject}/`
 
 ---
 
@@ -26,7 +26,7 @@ Extracts 28 standardized sulcal region crops from Morphologist's graphs.
 | Parameter | Type | Required | Notes |
 |-----------|------|----------|-------|
 | `input_dir` | str | yes | Morphologist `subjects/` dir (read-only safe) |
-| `output_dir` | str | yes | Derivatives root; writes `cortical_tiles-{YEAR}/crops/2mm/` |
+| `output_dir` | str | yes | The derivatives dir (`<dataset root>/derivatives/`); writes `cortical_tiles-{YEAR}/crops/{masks}/2mm/` (`{masks}` defaults to `canonical_25`) |
 | `path_to_graph` | str | yes | Relative path to `.arg` graph from subject dir. Supports `*` wildcards. E.g. `t1mri/default_acquisition/default_analysis/folds/3.1` |
 | `path_sk_with_hull` | str | yes | Relative path to skeleton dir. E.g. `t1mri/default_acquisition/default_analysis/segmentation` |
 | `sk_qc_path` | str | no | TSV file with `participant_id` and `qc` columns for filtering |
@@ -36,7 +36,7 @@ Extracts 28 standardized sulcal region crops from Morphologist's graphs.
 | `labelling_session` | str | no | Morphologist labelling session whose labelled graphs locate the ventricle for whole-brain removal (default: `deepcnn_session_auto`) |
 | `overwrite` | bool | no | Re-generate crops even if they already exist for this mask version |
 
-Output: `{output_dir}/cortical_tiles-{YEAR}/crops/2mm/` — 28 region folders.
+Output: `{output_dir}/cortical_tiles-{YEAR}/crops/{masks}/2mm/` — 28 region folders (`{masks}` = the `masks` parameter, default `canonical_25`).
 
 > **CLI-only flags (not exposed via MCP):** `--input-types` (default `skeleton foldlabel`), `--with-distbottom` (opt-in distbottom generation), `--skip-distbottom` (deprecated no-op; distbottom is off by default). Do not attempt to pass these through the MCP tool.
 
@@ -53,7 +53,7 @@ Generates Champollion dataset YAML configuration files (`reference.yaml`, `local
 
 | Parameter | Type | Required | Notes |
 |-----------|------|----------|-------|
-| `crop_path` | str | yes | Path to `crops/2mm/` directory from stage 2 |
+| `crop_path` | str | yes | Path to the `crops/{masks}/2mm/` directory from stage 2 (default mask version `canonical_25`) |
 | `dataset` | str | yes | Short dataset name (e.g. `TESTXX`) |
 | `output` | str | no | Configs root; region YAMLs land at `{output}/dataset/{dataset}/`. Default: `<D>/<dataset>/derivatives/champollion_V1/configs` (`<D>` = parent of the `<dataset>` directory in `crop_path`) |
 | `champollion_loc` | str | no | Override path to champollion_V1 (default: `external/champollion_V1`) |
@@ -136,7 +136,7 @@ Renders sulcal graph meshes, cortical tile masks, and UMAP scatter plots.
 |-----------|------|----------|-------|
 | `output_dir` | str | yes | Where to write snapshot images |
 | `morphologist_dir` | str | no | Morphologist output dir (for sulcal graph snapshots) |
-| `cortical_tiles_dir` | str | no | `crops/2mm/` dir (for tile mask snapshots) |
+| `cortical_tiles_dir` | str | no | `crops/{masks}/2mm/` dir from stage 2, default mask version `canonical_25` (for tile mask snapshots) |
 | `embeddings_dir` | str | no | Combined embeddings dir from stage 5 (for UMAP plots) |
 | `subject` | str | no | Subject folder name to visualize (default: first found) |
 | `acquisition` | str | no | Acquisition tag (required if subject has multiple segmentations) |

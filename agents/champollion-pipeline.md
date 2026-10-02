@@ -94,7 +94,12 @@ Call `preflight_check()` before anything else. If it reports issues, stop and he
         └── snapshots/
 ```
 
-Use `./data/{dataset}/derivatives/` as the default `output_dir` for all stages. Stage 3's `output` is a configs root (region YAMLs land at `{output}/dataset/{dataset}/`): ask the user whether to override it; if omitted, the pipeline default configs root `<D>/<dataset>/derivatives/champollion_V1/configs` applies (`<D>` = parent of the `<dataset>` directory in `crop_path`).
+Default `output_dir` per tool (each tool appends its own subfolders, so the values differ):
+- `start_pipeline`: `./data/{dataset}/` (the dataset root R)
+- `start_morphologist`: `./data/{dataset}/` (the dataset root — `morphologist-cli` appends `derivatives/morphologist-6.0/subjects/`)
+- `start_cortical_tiles`: `./data/{dataset}/derivatives/` (the derivatives dir — crops land in `cortical_tiles-2026/crops/canonical_25/2mm/` under it)
+- `start_snapshots`: `./data/{dataset}/derivatives/champollion_V1/snapshots/` (images are written straight into it)
+- `start_config` takes no `output_dir`: its `output` is a configs root (region YAMLs land at `{output}/dataset/{dataset}/`); ask the user whether to override it; if omitted, the pipeline default configs root `<D>/<dataset>/derivatives/champollion_V1/configs` applies (`<D>` = parent of the `<dataset>` directory in `crop_path`).
 
 **Default `path_to_graph`**:
 - Non-BIDS: `t1mri/default_acquisition/default_analysis/folds/3.1`
@@ -103,7 +108,7 @@ Use `./data/{dataset}/derivatives/` as the default `output_dir` for all stages. 
 For **stage-centric** runs, required per stage:
 - **Stage 1 (morphologist)**: `input_dir` (T1 NIfTI dir), `output_dir`
 - **Stage 2 (cortical_tiles)**: `input_dir` (Morphologist subjects/), `output_dir`, `path_to_graph`, `path_sk_with_hull`
-- **Stage 3 (config)**: `crop_path` (crops/2mm/ from stage 2), `dataset` name, optional `output` (a configs root: ask the user whether to override; default `<D>/<dataset>/derivatives/champollion_V1/configs`, `<D>` = parent of the `<dataset>` directory in `crop_path`)
+- **Stage 3 (config)**: `crop_path` (`crops/{masks}/2mm/` from stage 2, default `crops/canonical_25/2mm/`), `dataset` name, optional `output` (a configs root: ask the user whether to override; default `<D>/<dataset>/derivatives/champollion_V1/configs`, `<D>` = parent of the `<dataset>` directory in `crop_path`)
 - **Training (optional, `start_training`)**: `dataset`, `region`; `config_dir` defaults to `<pipeline>/data/<dataset>/derivatives/champollion_V1/configs`; pass `<D>/<dataset>/derivatives/champollion_V1/configs` when the dataset lives outside `<pipeline>/data/`, or the stage-3 `output` configs root if one was set
 - **Stage 4 (embeddings)**: `models_path` (local model dir, `.tar.gz`, URL or HF repo ID), `datasets_root` (dataset root containing `derivatives/`); optional `output` (default `{parent of datasets_root}/{basename of datasets_root}embeddings/`), `cpu`, `overwrite`, `regions`
 - **Stage 5 (combine)**: `embeddings_source` (the stage-4 `output` directory, default `{parent of datasets_root}/{basename of datasets_root}embeddings/`), `output_path`
@@ -133,7 +138,7 @@ Continue polling until status is `succeeded`, `failed`, or `cancelled`.
 **succeeded** → Report output locations and run sanity checks:
 ```bash
 # 28 sulcal region folders?
-ls {output_dir}/cortical_tiles-*/crops/2mm | wc -l
+ls {output_dir}/derivatives/cortical_tiles-*/crops/canonical_25/2mm | wc -l
 
 # 56 combined embedding CSVs?
 ls {output_dir}/derivatives/champollion_V1/embeddings/*.csv | wc -l
@@ -160,9 +165,9 @@ When a job fails:
 
 | Stage | Output path |
 |-------|-------------|
-| Morphologist | `{output_dir}/morphologist-*/subjects/` |
-| Cortical crops | `{output_dir}/cortical_tiles-*/crops/2mm/` (28 folders) |
-| Config | `{output_dir}/champollion_V1/configs/dataset/{dataset}/` |
+| Morphologist | `{output_dir}/derivatives/morphologist-*/subjects/` (`output_dir` = `start_pipeline`'s dataset root) |
+| Cortical crops | `{output_dir}/derivatives/cortical_tiles-*/crops/canonical_25/2mm/` (28 folders; `canonical_25` is the default `masks` version — the folder follows `masks` when it is set; `start_pipeline` never sets it) |
+| Config | `{output_dir}/derivatives/champollion_V1/configs/dataset/{dataset}/` (`start_config`'s default configs root; assumes the dataset root's basename is `{dataset}`) |
 | Per-fold embeddings | `{parent of datasets_root}/{basename of datasets_root}embeddings/{region}/full_embeddings.csv` (stage-4 `output` default) |
 | Combined embeddings | `{output_dir}/derivatives/champollion_V1/embeddings/` (56 CSVs; `output_dir` = `start_pipeline`'s dataset root) |
 | Snapshots | `{output_dir}/derivatives/champollion_V1/snapshots/` (`output_dir` = `start_pipeline`'s dataset root) |
@@ -186,7 +191,7 @@ pixi run python3 src/champollion_pipeline/run_cortical_tiles.py \
 ```bash
 # configs land in the default configs root /path/to/data/TESTXX/derivatives/champollion_V1/configs
 pixi run python3 src/champollion_pipeline/generate_champollion_config.py \
-    /path/to/data/TESTXX/derivatives/cortical_tiles-2026/crops/2mm \
+    /path/to/data/TESTXX/derivatives/cortical_tiles-2026/crops/canonical_25/2mm \
     --dataset TESTXX
 ```
 
@@ -209,7 +214,7 @@ pixi run python3 src/champollion_pipeline/put_together_embeddings.py \
 ```bash
 pixi run python3 src/champollion_pipeline/generate_snapshots.py \
     --morphologist_dir /path/to/data/TESTXX/derivatives/morphologist-6.0/ \
-    --cortical_tiles_dir /path/to/data/TESTXX/derivatives/cortical_tiles-2026/crops/2mm/ \
+    --cortical_tiles_dir /path/to/data/TESTXX/derivatives/cortical_tiles-2026/crops/canonical_25/2mm/ \
     --embeddings_dir /path/to/data/TESTXX/derivatives/champollion_V1/embeddings/ \
     --reference_data_dir /path/to/reference_data/ \
     --output_dir /path/to/data/TESTXX/derivatives/champollion_V1/snapshots/
