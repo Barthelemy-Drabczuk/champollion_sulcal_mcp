@@ -53,12 +53,12 @@ Generates Champollion dataset YAML configuration files (`reference.yaml`, `local
 |-----------|------|----------|-------|
 | `crop_path` | str | yes | Path to `crops/2mm/` directory from stage 2 |
 | `dataset` | str | yes | Short dataset name (e.g. `TESTXX`) |
-| `output` | str | no | Config output dir. Recommended: `{output_dir}/champollion_V1/configs/dataset/{dataset}` |
+| `output` | str | no | Configs root; region YAMLs land at `{output}/dataset/{dataset}/`. Default: `<D>/<dataset>/derivatives/champollion_V1/configs` (`<D>` = parent of the `<dataset>` directory in `crop_path`) |
 | `champollion_loc` | str | no | Override path to champollion_V1 (default: `external/champollion_V1`) |
-| `external_config` | str | no | For read-only containers: write `local.yaml` to a writable path |
+| `external_config` | str | no | Where to write the `dataset_localization` YAML (directory or file path). Default: `{configs root}/dataset_localization/`. Use for read-only containers |
 | `external_crops` | bool | no | Set when crops are outside the pipeline dir |
 
-Output: `{output}/reference.yaml` (and related files). This `output` path is the `config_path` for stage 4.
+Output: `{configs root}/dataset/{dataset}/` (`reference.yaml` + one YAML per region) and `{configs root}/dataset_localization/` (unless `external_config` is set). `start_embeddings` (stage 4) does not consume these files (each model folder carries its own `.hydra/config.yaml`); they feed `start_training` via `config_dir`.
 
 ---
 
@@ -75,7 +75,7 @@ instead of (or before) `start_embeddings` when custom model weights are needed.
 | `region` | str | yes | Region config name, e.g. `cingulate_left`. Must match a YAML file under `configs/dataset/{dataset}/` |
 | `mode` | str | no | `encoder` (default), `classifier`, or `regresser` |
 | `output_dir` | str | no | Absolute path for Hydra logs and model checkpoints. Defaults to `{pipeline_dir}/data/{dataset}/derivatives/champollion_V1/models/{region}/` |
-| `config_dir` | str | no | Absolute path to a local Hydra configs root containing `dataset/{dataset}/{region}.yaml`. Required when configs live outside the champollion_V1 submodule (e.g. written by `start_config` with `output` set) |
+| `config_dir` | str | no | Absolute path to a Hydra configs root containing `dataset/{dataset}/{region}.yaml`. Default: `{pipeline_dir}/data/{dataset}/derivatives/champollion_V1/configs`. Pass it when the dataset lives outside `{pipeline_dir}/data/` (use `<D>/<dataset>/derivatives/champollion_V1/configs`) or when `start_config` was given an explicit `output` (use that configs root) |
 | `njobs` | int | no | CPU DataLoader workers |
 | `cpu` | bool | no | Force CPU (disable CUDA) |
 | `overwrite` | bool | no | Re-train even if `output_dir` already exists |
@@ -97,7 +97,6 @@ Runs inference across 56 model folds (28 regions × 2 hemispheres). This is the 
 | `dataset_localization` | str | yes | Use `local` for local datasets |
 | `datasets_root` | str | yes | Absolute path to the dataset derivatives root |
 | `short_name` | str | yes | Run tag (e.g. `run01`). Used in output path names |
-| `config_path` | str | **yes** | Stage 3 output dir — the folder containing `reference.yaml` and per-region YAML files. Without this, dataset resolution fails with `IndexError: list index out of range`. |
 | `embeddings_only` | bool | no | Skip classifier training (default: `true`) |
 | `cpu` | bool | no | Force CPU (disable CUDA) |
 | `overwrite` | bool | no | Re-run and overwrite existing embeddings |

@@ -184,14 +184,20 @@ async def start_config(
     external_crops: bool = False,
     ctx: Context | None = None,
 ) -> dict:
-    """Launch Stage 3: generate Champollion dataset YAML configuration files."""
+    """Launch Stage 3: generate Champollion dataset YAML configuration files.
+
+    The configs root defaults to <D>/<dataset>/derivatives/champollion_V1/configs,
+    where <D> is the parent of the <dataset> directory in crop_path; region YAMLs
+    land at {configs root}/dataset/<dataset>/. `output` overrides the configs root;
+    `external_config` overrides where the dataset_localization YAML is written
+    (default {configs root}/dataset_localization/). Each is forwarded only when
+    supplied, so the pipeline defaults apply otherwise.
+    """
     _require_absolute(crop_path, "crop_path")
     roots = await get_roots(ctx)
     validate_within_roots(crop_path, roots, "crop_path")
     if output:
         validate_within_roots(output, roots, "output")
-    if external_config is None and roots:
-        external_config = str(roots[0] / "champollion_configs" / dataset)
 
     try:
         loc = preflight.detect()
@@ -445,8 +451,11 @@ async def start_training(
 ) -> dict:
     """Launch encoder training: train a champollion_V1 self-supervised encoder for one sulcal region.
 
-    Dataset configs must exist before calling this tool — run start_config first (or supply
-    config_dir if configs live outside the champollion_V1 submodule).
+    Dataset configs must exist before calling this tool: run start_config first.
+    config_dir defaults to <pipeline>/data/<dataset>/derivatives/champollion_V1/configs
+    (<pipeline> = the champollion_pipeline root). Pass config_dir when the dataset
+    lives outside <pipeline>/data/ (use <D>/<dataset>/derivatives/champollion_V1/configs)
+    or when start_config was given an explicit `output` (use that configs root).
     """
     if swf:
         raise ToolError("swf=True is not supported: train_champollion has no soma-workflow mode (REQ-SWF-01).")
