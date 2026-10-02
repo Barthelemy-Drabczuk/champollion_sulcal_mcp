@@ -10,3 +10,9 @@ dist/
 *.log
 .omc/
 .claude-plugin/
+
+# CodeGraph index
+.codegraph/
+
+# ALM ledger (.alm/, its own local git repo, no remote)
+.alm/
