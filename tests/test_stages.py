@@ -231,3 +231,27 @@ async def test_start_training_swf_false_launches_without_swf_flag(training_scrip
     assert out.is_dir()
     assert len(recording_runner) == 1
     assert "--swf" not in recording_runner[0]["argv"]
+
+
+# --- REQ-MCP-SNAPREF-01: reference_data_dir passthrough (TASK-053) ---
+
+
+@pytest.mark.unit
+async def test_start_snapshots_forwards_reference_data_dir(fake_pipeline_dir, tmp_output_dir, recording_runner):
+    """REQ-MCP-SNAPREF-01: a supplied reference_data_dir reaches generate_snapshots.py as
+    `--reference_data_dir <value>`; without it the script's `_run_umap` returns no UMAP plot.
+    """
+    reference = str(tmp_output_dir / "reference_data")
+    await stages.start_snapshots(output_dir=str(tmp_output_dir), reference_data_dir=reference)
+    argv = recording_runner[0]["argv"]
+    assert argv.count("--reference_data_dir") == 1
+    assert argv[argv.index("--reference_data_dir") + 1] == reference
+
+
+@pytest.mark.unit
+async def test_start_snapshots_omits_reference_data_dir_by_default(fake_pipeline_dir, tmp_output_dir, recording_runner):
+    """Guard for REQ-MCP-SNAPREF-01: without reference_data_dir, no flag (and no `None` value) is passed."""
+    await stages.start_snapshots(output_dir=str(tmp_output_dir))
+    argv = recording_runner[0]["argv"]
+    assert "--reference_data_dir" not in argv
+    assert "None" not in argv

@@ -622,9 +622,14 @@ async def start_snapshots(
     umap_only: bool = False,
     umap_region: str | None = None,
     champollion_data_root: str | None = None,
+    reference_data_dir: str | None = None,
     ctx: Context | None = None,
 ) -> dict:
-    """Launch Stage 6: render sulcal graph meshes, cortical tile masks, and UMAP scatter plots."""
+    """Launch Stage 6: render sulcal graph meshes, cortical tile masks, and UMAP scatter plots.
+
+    UMAP plots need both ``embeddings_dir`` and ``reference_data_dir``; there is no default for
+    ``reference_data_dir`` (not shipped with champollion_pipeline).
+    """
     _require_absolute(output_dir, "output_dir")
     roots = await get_roots(ctx)
     validate_within_roots(output_dir, roots, "output_dir")
@@ -660,6 +665,8 @@ async def start_snapshots(
         argv += ["--umap_region", umap_region]
     if champollion_data_root:
         argv += ["--champollion_data_root", champollion_data_root]
+    if reference_data_dir:
+        argv += ["--reference_data_dir", reference_data_dir]
 
     if ctx:
         await ctx.info(f"Launching snapshots stage → {output_dir}")
@@ -677,6 +684,7 @@ async def start_snapshots(
             "embeddings_dir": embeddings_dir,
             "subject": subject,
             "champollion_data_root": champollion_data_root,
+            "reference_data_dir": reference_data_dir,
         },
     )
     return _job_result(state, "snapshots")

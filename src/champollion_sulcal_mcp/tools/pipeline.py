@@ -50,9 +50,13 @@ async def start_pipeline(
     cpu: bool = False,
     skip_stages: list[str] | None = None,
     labelling_session: str | None = None,
+    reference_data_dir: str | None = None,
     ctx: Context | None = None,
 ) -> dict:
-    """Launch the full Champollion pipeline (all 6 stages sequentially). Returns a pipeline job_id immediately."""
+    """Launch the full Champollion pipeline (all 6 stages sequentially). Returns a pipeline job_id immediately.
+
+    ``reference_data_dir`` is optional and forwarded to stage 6 (snapshots) for UMAP plots.
+    """
     skip = set(skip_stages or [])
     active_stages = [s for s in STAGE_ORDER if s not in skip]
 
@@ -93,6 +97,7 @@ async def start_pipeline(
             parallel=parallel,
             cpu=cpu,
             labelling_session=labelling_session,
+            reference_data_dir=reference_data_dir,
         )
     )
     task.add_done_callback(_handle_task_exception)
@@ -262,6 +267,7 @@ async def _launch_stage(stage_name: str, umbrella_output_dir: str, **kwargs) -> 
             output_dir=umbrella_output_dir,
             morphologist_dir=kwargs.get("input_dir"),
             embeddings_dir=_compute_combined_embeddings_dir(umbrella_output_dir),
+            reference_data_dir=kwargs.get("reference_data_dir"),
         )
     else:
         raise ToolError(f"Unknown stage: {stage_name!r}")

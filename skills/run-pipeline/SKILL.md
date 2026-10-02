@@ -230,6 +230,7 @@ Then ask which snapshot types they want (at least one source directory is requir
 | Sulcal graph images wanted | `morphologist_dir` | Morphologist output directory (e.g. `{output_dir}/morphologist-*/`) |
 | Tile mask images wanted | `cortical_tiles_dir` | `crops/2mm/` directory from stage 2 |
 | UMAP scatter plots wanted | `embeddings_dir` | Combined embeddings directory from stage 5 |
+| UMAP scatter plots wanted | `reference_data_dir` | Pre-trained UMAP reference dir (not shipped, no default — ask the user where it lives) |
 
 **Optional:**
 | Parameter | Description |
@@ -283,6 +284,7 @@ start_pipeline(
   njobs=<N>,                                 # stage 2 CPU cores
   sk_qc_path=<QC TSV>,                       # optional, stage 2 subject filter
   labelling_session=<session>,               # optional, stage 2 (default deepcnn_session_auto)
+  reference_data_dir=<UMAP reference dir>,  # optional, stage 6 UMAP (not shipped, no default)
   cpu=<True/False>,                          # stage 4 GPU → CPU
 )
 ```
