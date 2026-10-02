@@ -230,3 +230,24 @@ async def test_snapshots_stage_argv_carries_reference_data_dir(fake_pipeline_dir
     )
 
     assert _argv_value(recording_runner[0]["argv"], "--reference_data_dir") == reference
+
+
+@pytest.mark.unit
+async def test_snapshots_argv_output_dir_is_derivatives_champollion_v1_snapshots(
+    fake_pipeline_dir, tmp_path, recording_runner
+):
+    """REQ-MCP-SNAPOUT-01: start_pipeline's snapshots stage, for dataset root R,
+    launches generate_snapshots.py with
+    `--output_dir R/derivatives/champollion_V1/snapshots`, not bare R.
+    """
+    dataset_root = tmp_path / "DEMO01"
+
+    await pipeline._launch_stage(
+        "snapshots",
+        umbrella_output_dir=str(dataset_root),
+        input_dir=str(dataset_root / "derivatives" / "morphologist-6.0" / "subjects"),
+        datasets_root=str(dataset_root),
+    )
+
+    argv = recording_runner[0]["argv"]
+    assert _argv_value(argv, "--output_dir") == str(dataset_root / "derivatives" / "champollion_V1" / "snapshots")
