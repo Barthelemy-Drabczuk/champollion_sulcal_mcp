@@ -5,6 +5,9 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from champollion_sulcal_mcp import runner
+from champollion_sulcal_mcp.job_store import JobState, write_job
+
 
 @pytest.fixture
 def tmp_output_dir(tmp_path):
@@ -67,6 +70,48 @@ def recording_runner(monkeypatch):
         return state
 
     from champollion_sulcal_mcp import runner
+
+    monkeypatch.setattr(runner, "launch", fake_launch)
+    return calls
+
+
+# Every script tools/stages.py launches (TASK-042 characterization tests).
+_SCRIPTS = [
+    "generate_morphologist_graphs.py",
+    "run_cortical_tiles.py",
+    "generate_champollion_config.py",
+    "generate_embeddings.py",
+    "put_together_embeddings.py",
+    "generate_snapshots.py",
+    "run_streaming.py",
+    "train_champollion.py",
+    "purge_subject.py",
+    "prune_failed_subjects.py",
+]
+
+
+@pytest.fixture
+def pipeline_dir(tmp_path, monkeypatch):
+    """A fake champollion_pipeline with a stub for every script tools/stages.py launches."""
+    pipeline = tmp_path / "champollion_pipeline"
+    scripts = pipeline / "src" / "champollion_pipeline"
+    scripts.mkdir(parents=True)
+    for name in _SCRIPTS:
+        (scripts / name).write_text("# stub\n")
+    monkeypatch.setenv("CHAMPOLLION_PIPELINE_DIR", str(pipeline))
+    return pipeline
+
+
+@pytest.fixture
+def launches(monkeypatch):
+    """Replace runner.launch with a recorder capturing stage, argv, output_dir and env."""
+    calls: list[dict] = []
+
+    async def fake_launch(stage, argv, output_dir, cwd, env, args_snapshot):
+        state = JobState(stage=stage, status="running", output_dir=output_dir, log_path="/tmp/fake.log")
+        write_job(state)
+        calls.append({"stage": stage, "argv": list(argv), "output_dir": output_dir, "env": dict(env)})
+        return state
 
     monkeypatch.setattr(runner, "launch", fake_launch)
     return calls
