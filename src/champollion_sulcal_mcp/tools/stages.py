@@ -7,7 +7,7 @@ from fastmcp import Context
 from fastmcp.exceptions import ToolError
 
 from .. import preflight, runner
-from ..roots import get_roots, validate_within_roots
+from ..roots import get_roots, validate_subject_subpath, validate_within_roots
 
 
 def _require_absolute(path: str, name: str) -> None:
@@ -145,8 +145,8 @@ async def start_cortical_tiles(
     roots = await get_roots(ctx)
     validate_within_roots(input_dir, roots, "input_dir")
     validate_within_roots(output_dir, roots, "output_dir")
-    validate_within_roots(path_to_graph, roots, "path_to_graph")
-    validate_within_roots(path_sk_with_hull, roots, "path_sk_with_hull")
+    validate_subject_subpath(path_to_graph, roots, "path_to_graph")
+    validate_subject_subpath(path_sk_with_hull, roots, "path_sk_with_hull")
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
     try:

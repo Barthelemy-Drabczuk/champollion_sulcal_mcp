@@ -32,3 +32,6 @@ testpaths = ["tests"]
 markers = ["unit: fast unit tests", "integration: slower integration tests"]
 asyncio_mode = "auto"
 addopts = "-ra --strict-markers"
+
+[tool.coverage.report]
+fail_under = 85
