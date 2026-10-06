@@ -411,6 +411,8 @@ async def start_streaming(
     roots = await get_roots(ctx)
     validate_within_roots(input_dir, roots, "input_dir")
     validate_within_roots(output_dir, roots, "output_dir")
+    validate_subject_subpath(path_to_graph, roots, "path_to_graph")
+    validate_subject_subpath(path_sk_with_hull, roots, "path_sk_with_hull")
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
     try:
