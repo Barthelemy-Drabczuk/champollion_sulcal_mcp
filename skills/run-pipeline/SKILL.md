@@ -202,6 +202,10 @@ Runs inference for every region model in `models_path` (56 for the full Champoll
 | `cortical_version` | Derivatives folder holding the crops (default: `cortical_tiles-2026`) |
 | `masks_version` | Mask version subfolder to download from HuggingFace; ignored for a local `models_path` |
 | `run_cka` | `True` to run the CKA coherence test after embeddings |
+| `profiling` | `True` to run under cProfile |
+| `no_cache` | `True` to force archive re-extraction / HuggingFace re-download |
+| `legacy` | `True` to read crops from `derivatives/deep_folding-2025/crops/2mm/` (overrides `cortical_version`) |
+| `use_last_checkpoint` | `True` to evaluate with the native Lightning checkpoint instead of `best_model_weights.pt` (default: best weights) |
 
 > `subjects` is still accepted but deprecated and ignored by the pipeline.
 
@@ -296,7 +300,7 @@ start_pipeline(
 )
 ```
 
-`start_pipeline` runs stage 4 with its defaults apart from `cpu`. For any other stage-4 option (`output`, `regions`, `overwrite`, ...) run the stages individually.
+`start_pipeline` forwards `cpu`, `overwrite`, `run_cka`, `regions`, `masks`, `masks_version` and `cortical_version` to stage 4. Stage 2 always writes the default crops, so set `masks` / `cortical_version` only together with `skip_stages`. For `output` or any other stage-4 option, run the stages individually.
 
 ### Individual stages
 

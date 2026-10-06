@@ -283,9 +283,20 @@ async def start_embeddings(
     regions: list[str] | None = None,
     run_cka: bool = False,
     cortical_version: str | None = None,
+    profiling: bool = False,
+    no_cache: bool = False,
+    legacy: bool = False,
+    use_last_checkpoint: bool = False,
     ctx: Context | None = None,
 ) -> dict:
-    """Launch Stage 4: compute sulcal embeddings across all 56 model folds (28 regions × 2 hemispheres)."""
+    """Launch Stage 4: compute sulcal embeddings across all 56 model folds (28 regions × 2 hemispheres).
+
+    profiling: run the embeddings script under cProfile.
+    no_cache: re-extract a models archive, ignoring the cache.
+    legacy: read crops from derivatives/deep_folding-2025 (overrides cortical_version).
+    use_last_checkpoint: evaluate with the native Lightning checkpoint in version_0/checkpoints/
+        instead of best_model_weights.pt, for regions that have one.
+    """
     if _is_local_path(models_path):
         _require_absolute(models_path, "models_path")
         roots = await get_roots(ctx)
@@ -324,6 +335,14 @@ async def start_embeddings(
         argv += ["--regions"] + regions
     if cortical_version:
         argv += ["--cortical_version", cortical_version]
+    if profiling:
+        argv.append("--profiling")
+    if no_cache:
+        argv.append("--no-cache")
+    if legacy:
+        argv.append("--legacy")
+    if use_last_checkpoint:
+        argv.append("--use_last_checkpoint")
 
     env = _build_env(pass_hf_token=True)
 

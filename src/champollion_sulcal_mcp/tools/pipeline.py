@@ -66,11 +66,22 @@ async def start_pipeline(
     skip_stages: list[str] | None = None,
     labelling_session: str | None = None,
     reference_data_dir: str | None = None,
+    overwrite: bool = False,
+    run_cka: bool = False,
+    regions: list[str] | None = None,
+    masks: str | None = None,
+    masks_version: str | None = None,
+    cortical_version: str | None = None,
     ctx: Context | None = None,
 ) -> dict:
     """Launch the full Champollion pipeline (all 6 stages sequentially). Returns a pipeline job_id immediately.
 
     ``reference_data_dir`` is optional and forwarded to stage 6 (snapshots) for UMAP plots.
+
+    ``overwrite``, ``run_cka``, ``regions``, ``masks``, ``masks_version`` and ``cortical_version``
+    apply to stage 4 (embeddings) only. ``regions`` are model names (e.g. ``SCsylv_left``);
+    ``masks`` and ``cortical_version`` must point at where the stage-2 crops actually are
+    (stage 2 always writes the default crops, so set them only with ``skip_stages``).
     """
     skip = set(skip_stages or [])
     active_stages = [s for s in STAGE_ORDER if s not in skip]
@@ -113,6 +124,12 @@ async def start_pipeline(
             cpu=cpu,
             labelling_session=labelling_session,
             reference_data_dir=reference_data_dir,
+            overwrite=overwrite,
+            run_cka=run_cka,
+            regions=regions,
+            masks=masks,
+            masks_version=masks_version,
+            cortical_version=cortical_version,
         )
     )
     task.add_done_callback(_handle_task_exception)
@@ -267,6 +284,12 @@ async def _launch_stage(stage_name: str, umbrella_output_dir: str, **kwargs) -> 
             models_path=kwargs["models_path"],
             datasets_root=kwargs["datasets_root"],
             cpu=kwargs.get("cpu", False),
+            overwrite=kwargs.get("overwrite", False),
+            run_cka=kwargs.get("run_cka", False),
+            regions=kwargs.get("regions"),
+            masks=kwargs.get("masks"),
+            masks_version=kwargs.get("masks_version"),
+            cortical_version=kwargs.get("cortical_version"),
         )
     elif stage_name == "combine":
         datasets_root = kwargs["datasets_root"]
