@@ -106,8 +106,10 @@ Runs inference for every region model in `models_path` (56 for the full Champoll
 | `regions` | list[str] | no | Restrict to these region model names (e.g. `SCsylv_left`). Default: every region found in `models_path` |
 | `run_cka` | bool | no | Run the CKA coherence test after embeddings (results in `{output}/cka_results/`) |
 | `cortical_version` | str | no | Derivatives folder that holds the crops (default: `cortical_tiles-2026`) |
-
-> **CLI-only flags (not exposed via MCP):** `--profiling` (cProfile), `--no-cache` (force archive re-extraction / HuggingFace re-download), `--legacy` (read crops from `derivatives/deep_folding-2025/crops/2mm/`). Do not attempt to pass these through the MCP tool.
+| `profiling` | bool | no | Run the embeddings script under cProfile (`--profiling`) |
+| `no_cache` | bool | no | Force archive re-extraction / HuggingFace re-download (`--no-cache`) |
+| `legacy` | bool | no | Read crops from `derivatives/deep_folding-2025/crops/2mm/` (`--legacy`; overrides `cortical_version`) |
+| `use_last_checkpoint` | bool | no | Evaluate with the native Lightning checkpoint in `version_0/checkpoints/` instead of `best_model_weights.pt`, for regions that have one (`--use_last_checkpoint`) |
 
 **HF_TOKEN**: Set in env before starting the MCP server if downloading from HuggingFace.
 
