@@ -102,7 +102,7 @@ Runs inference for every region model in `models_path` (56 for the full Champoll
 | `overwrite` | bool | no | Recompute regions whose `full_embeddings.csv` already exists (default: they are skipped) |
 | `masks` | str | no | Mask version used as the crops subdirectory (default: `canonical_25`) |
 | `masks_version` | str | no | Mask version subfolder to download from HuggingFace (e.g. `canonical_25`); ignored when `models_path` is a local directory |
-| `output` | str | no | Output base directory. Default: `{parent of datasets_root}/{basename of datasets_root}embeddings/` (e.g. `/data/TESTXX` → `/data/TESTXXembeddings/`) |
+| `output` | str | no | Output base directory. Default: `{datasets_root}/derivatives/champollion_V1/{masks}/region_embeddings/` (`{masks}` = the `masks` above; e.g. `/data/TESTXX` → `/data/TESTXX/derivatives/champollion_V1/canonical_25/region_embeddings/`) |
 | `subjects` | str | no | Deprecated and ignored: each region reads its subject list from the `{side}skeleton_subject.csv` next to its skeleton |
 | `regions` | list[str] | no | Restrict to these region model names (e.g. `SCsylv_left`). Default: every region found in `models_path` |
 | `run_cka` | bool | no | Run the CKA coherence test after embeddings (results in `{output}/cka_results/`) |
@@ -114,7 +114,7 @@ Runs inference for every region model in `models_path` (56 for the full Champoll
 
 **HF_TOKEN**: Set in env before starting the MCP server if downloading from HuggingFace.
 
-Output: `{output}/{region}/full_embeddings.csv` — one folder per region model (56 for the full set). Default `{output}`: `{parent of datasets_root}/{basename of datasets_root}embeddings/`. Downloaded or extracted models are cached under `<pipeline>/data/{datasets_root without its leading /}/derivatives/champollion_V1/models_cache/` (`<pipeline>` = champollion_pipeline root).
+Output: `{output}/{region}/full_embeddings.csv` — one folder per region model (56 for the full set). Default `{output}`: `{datasets_root}/derivatives/champollion_V1/{masks}/region_embeddings/`. Downloaded or extracted models are cached under `<pipeline>/data/{datasets_root without its leading /}/derivatives/champollion_V1/models_cache/` (`<pipeline>` = champollion_pipeline root).
 
 ---
 
@@ -124,7 +124,7 @@ Copies every per-region `full_embeddings.csv` produced by stage 4 into a single 
 
 | Parameter | Type | Required | Notes |
 |-----------|------|----------|-------|
-| `embeddings_source` | str | yes | Absolute path to the stage-4 output directory (one `{region}/full_embeddings.csv` per region): the `output` given to `start_embeddings`, default `{parent of datasets_root}/{basename of datasets_root}embeddings/` |
+| `embeddings_source` | str | yes | Absolute path to the stage-4 output directory (one `{region}/full_embeddings.csv` per region): the `output` given to `start_embeddings`, default `{datasets_root}/derivatives/champollion_V1/{masks}/region_embeddings/` |
 | `output_path` | str | yes | Directory for the collected CSVs (created if missing) |
 
 Output: `{output_path}/{region}_embeddings.csv` — one file per region folder of `embeddings_source` that holds a `full_embeddings.csv`; regions without one are skipped with a `[skip]` log line. Zero files copied is logged as a warning, not a failure.

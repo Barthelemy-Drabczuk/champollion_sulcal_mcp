@@ -1,17 +1,9 @@
-"""REQ-MCP-OUTLOC-03 / -04, REQ-MCP-SNAPOUT-02, REQ-MCP-OUTDIR-01..07: output-path docs match the tools.
+"""REQ-MCP-OUTDIR-01..07: output-path docs match the tools.
 
-Reference (champollion_sulcal_mcp TASK-049; champollion_pipeline WIP):
-- start_pipeline's ``output_dir`` is the dataset root R (REQ-CROPPATH-01); the
-  combine stage writes ``{region}_embeddings.csv`` to
-  ``R/derivatives/champollion_V1/embeddings/`` (REQ-MCP-OUTLOC-01).
-- ``generate_embeddings.py`` writes per-region ``full_embeddings.csv`` to
-  ``{output}/{region}/``, ``output`` defaulting to
-  ``{parent of datasets_root}/{basename of datasets_root}embeddings/`` — never
-  to the ``models_cache`` (downloaded-model cache).
-- the snapshots stage writes images to ``R/derivatives/champollion_V1/snapshots/``
-  (REQ-MCP-SNAPOUT-01; ``generate_snapshots.py`` writes straight into
-  ``--output_dir``, matching the pipeline README's
-  ``derivatives/champollion_V1/snapshots/`` example).
+The Per-fold / Combined embeddings and Snapshots rows and the combined-CSV sanity
+check (REQ-MCP-OUTLOC-03 / -04, REQ-MCP-SNAPOUT-02) are checked by
+tests/test_mcpembver_docs_layout.py against their superseding REQ-MCPEMBVER
+requirements (versioned ``{datasets_root}/derivatives/champollion_V1/{masks}/`` tree).
 
 ``output_dir`` semantics per tool (champollion_sulcal_mcp TASK-051):
 - ``start_pipeline``: dataset root R. It passes R unchanged to
@@ -19,8 +11,8 @@ Reference (champollion_sulcal_mcp TASK-049; champollion_pipeline WIP):
 - ``start_morphologist``: dataset root; ``morphologist-cli`` appends
   ``derivatives/morphologist-6.0/subjects/``.
 - ``start_cortical_tiles``: derivatives dir; crops land in
-  ``{output_dir}/cortical_tiles-2026/crops/{masks_version}/2mm/``
-  (``masks_version`` defaults to ``canonical_25``; start_pipeline never sets it).
+  ``{output_dir}/cortical_tiles-2026/crops/{masks}/2mm/``
+  (``masks`` defaults to ``canonical_25``; start_pipeline forwards a non-empty ``masks``).
 - ``start_config`` (no ``output``): ``<D>/<dataset>/derivatives/champollion_V1/configs``,
   i.e. ``R/derivatives/...`` under the ``./data/{dataset}/`` layout.
 - ``start_snapshots``: images are written straight into ``output_dir``.
@@ -43,14 +35,11 @@ DOCS = [
 ]
 DOC_IDS = [str(p.relative_to(REPO_ROOT)) for p in DOCS]
 
-COMBINED_PATH = "{output_dir}/derivatives/champollion_V1/embeddings/"
-SNAPSHOTS_PATH = "{output_dir}/derivatives/champollion_V1/snapshots/"
 MORPHOLOGIST_PATH = "{output_dir}/derivatives/morphologist-*/subjects/"
 CROPS_PATH = "{output_dir}/derivatives/cortical_tiles-*/crops/canonical_25/2mm/"
 CONFIG_PATH = "{output_dir}/derivatives/champollion_V1/configs/dataset/{dataset}/"
 CROPS_SANITY_CHECK = "ls {output_dir}/derivatives/cortical_tiles-*/crops/canonical_25/2mm | wc -l"
 STAGE_PARAMS = REPO_ROOT / "skills" / "run-pipeline" / "references" / "stage-params.md"
-PER_FOLD_PATH = "{parent of datasets_root}/{basename of datasets_root}embeddings/{region}/full_embeddings.csv"
 
 
 def _output_locations_rows(doc: Path, label: str) -> list[str]:
@@ -64,39 +53,6 @@ def _output_locations_rows(doc: Path, label: str) -> list[str]:
 
 def _path_cell(row: str) -> str:
     return row.split("|")[2].strip()
-
-
-@pytest.mark.parametrize("doc", DOCS, ids=DOC_IDS)
-def test_combined_embeddings_row_names_derivatives_path(doc: Path) -> None:
-    """REQ-MCP-OUTLOC-03: the Combined embeddings row names the combine stage's real output dir."""
-    for row in _output_locations_rows(doc, re.escape("Combined embeddings")):
-        assert f"`{COMBINED_PATH}`" in _path_cell(row), row
-
-
-@pytest.mark.parametrize("doc", DOCS, ids=DOC_IDS)
-def test_combined_sanity_check_names_derivatives_path(doc: Path) -> None:
-    """REQ-MCP-OUTLOC-03: every combined-CSV sanity check lists the combine stage's real output dir."""
-    checks = [line.strip() for line in doc.read_text().splitlines() if re.match(r"^\s*ls .*embeddings.*\*\.csv", line)]
-    assert checks, f"{doc.relative_to(REPO_ROOT)}: no combined-CSV sanity check (`ls ...*.csv`)"
-    for line in checks:
-        assert line.startswith(f"ls {COMBINED_PATH}*.csv"), line
-
-
-@pytest.mark.parametrize("doc", DOCS, ids=DOC_IDS)
-def test_per_fold_embeddings_row_names_stage4_output(doc: Path) -> None:
-    """REQ-MCP-OUTLOC-04: the Per-fold embeddings row names generate_embeddings.py's
-    per-region output, not the models cache."""
-    for row in _output_locations_rows(doc, re.escape("Per-fold embeddings")):
-        cell = _path_cell(row)
-        assert f"`{PER_FOLD_PATH}`" in cell, row
-        assert "models_cache" not in cell, row
-
-
-@pytest.mark.parametrize("doc", DOCS, ids=DOC_IDS)
-def test_snapshots_row_names_derivatives_path(doc: Path) -> None:
-    """REQ-MCP-SNAPOUT-02: the Snapshots row names the snapshots stage's real output dir."""
-    for row in _output_locations_rows(doc, re.escape("Snapshots")):
-        assert f"`{SNAPSHOTS_PATH}`" in _path_cell(row), row
 
 
 # Per-doc first-cell labels of the Output Locations rows (regex alternatives).
