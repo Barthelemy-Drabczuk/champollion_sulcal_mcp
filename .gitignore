@@ -16,3 +16,6 @@ dist/
 
 # ALM ledger (.alm/, its own local git repo, no remote)
 .alm/
+
+# Written by alm (ALM 6) for an in-repo .alm/; our .alm/ is its own git repo, where the rule lives.
+/.gitattributes

@@ -67,8 +67,10 @@ Ask for the inputs and outputs of **each stage the user intends to run**. All pa
     ├── cortical_tiles-2026/
     └── champollion_V1/
         ├── configs/
-        ├── embeddings/
-        └── snapshots/
+        └── {masks}/            # mask version, default canonical_25
+            ├── region_embeddings/
+            ├── embeddings/
+            └── snapshots/
 ```
 
 Default `output_dir` per tool (each tool appends its own subfolders, so the values differ):
@@ -194,7 +196,7 @@ Runs inference for every region model in `models_path` (56 for the full Champoll
 **Optional:**
 | Parameter | Description |
 |-----------|-------------|
-| `output` | Output base directory; default `{parent of datasets_root}/{basename of datasets_root}embeddings/` (e.g. `/data/TESTXXembeddings/`). Use a different directory to keep a past run |
+| `output` | Output base directory; default `{datasets_root}/derivatives/champollion_V1/{masks}/region_embeddings/` (`{masks}` = the `masks` below; e.g. `/data/TESTXX/derivatives/champollion_V1/canonical_25/region_embeddings/`). Use a different directory to keep a past run |
 | `cpu` | `True` to force CPU (disables CUDA; slower but avoids OOM) |
 | `overwrite` | `True` to recompute regions whose `full_embeddings.csv` already exists (default: they are skipped) |
 | `regions` | Restrict to these region model names (e.g. `["SCsylv_left"]`); default: every region in `models_path` |
@@ -221,8 +223,8 @@ Copies every per-region `full_embeddings.csv` produced by stage 4 into a single 
 **Ask:**
 | Parameter | Description |
 |-----------|-------------|
-| `embeddings_source` | Stage-4 output directory (one `{region}/full_embeddings.csv` per region): the `output` given to stage 4, default `{parent of datasets_root}/{basename of datasets_root}embeddings/` |
-| `output_path` | Directory for the collected CSVs, written as `{region}_embeddings.csv` (e.g. `{output_dir}/champollion_V1/embeddings/`) |
+| `embeddings_source` | Stage-4 output directory (one `{region}/full_embeddings.csv` per region): the `output` given to stage 4, default `{datasets_root}/derivatives/champollion_V1/{masks}/region_embeddings/` |
+| `output_path` | Directory for the collected CSVs, written as `{region}_embeddings.csv` (e.g. `{datasets_root}/derivatives/champollion_V1/{masks}/embeddings/`, where `start_pipeline` writes them) |
 
 ---
 
@@ -300,7 +302,7 @@ start_pipeline(
 )
 ```
 
-`start_pipeline` forwards `cpu`, `overwrite`, `run_cka`, `regions`, `masks`, `masks_version` and `cortical_version` to stage 4. Stage 2 always writes the default crops, so set `masks` / `cortical_version` only together with `skip_stages`. For `output` or any other stage-4 option, run the stages individually.
+`start_pipeline` forwards a non-empty `masks` to stages 2, 3 and 4 (crops, configs and embeddings all use that mask version), and stages 5 and 6 read and write under `{datasets_root}/derivatives/champollion_V1/{masks}/` (see Output Locations). `start_pipeline` also forwards `cpu`, `overwrite`, `run_cka`, `regions`, `masks_version` and `cortical_version` to stage 4; `cortical_version` must name where the stage-2 crops actually are. For `output` or any other stage-4 option, run the stages individually.
 
 ### Individual stages
 
@@ -339,14 +341,16 @@ For **dry-run**: set `dry_run=True` first — the job log will list all scans th
 
 ## Output Locations (full pipeline)
 
+`{masks}` is the `masks` value passed to `start_pipeline`, or `canonical_25` when that value is unset or empty; `{datasets_root}` is `start_pipeline`'s `datasets_root`, normally its dataset root.
+
 | Stage | Output path |
 |-------|-------------|
 | Morphologist graphs | `{output_dir}/derivatives/morphologist-*/subjects/` (`output_dir` = `start_pipeline`'s dataset root) |
-| Sulcal region crops | `{output_dir}/derivatives/cortical_tiles-*/crops/canonical_25/2mm/` (28 folders; `canonical_25` is the default `masks` version — the folder follows `masks` when it is set; `start_pipeline` never sets it) |
+| Sulcal region crops | `{output_dir}/derivatives/cortical_tiles-*/crops/canonical_25/2mm/` (28 folders; `canonical_25` is the default `masks` version — the folder follows a non-empty `masks` passed to `start_pipeline`, becoming `crops/{masks}/2mm/`) |
 | Champollion config | `{output_dir}/derivatives/champollion_V1/configs/dataset/{dataset}/` (`start_config`'s default configs root; assumes the dataset root's basename is `{dataset}`) |
-| Per-fold embeddings | `{parent of datasets_root}/{basename of datasets_root}embeddings/{region}/full_embeddings.csv` (stage-4 `output` default) |
-| Combined embeddings | `{output_dir}/derivatives/champollion_V1/embeddings/` (56 CSV files; `output_dir` = `start_pipeline`'s dataset root) |
-| Snapshots | `{output_dir}/derivatives/champollion_V1/snapshots/` (`output_dir` = `start_pipeline`'s dataset root) |
+| Per-fold embeddings | `{datasets_root}/derivatives/champollion_V1/{masks}/region_embeddings/{region}/full_embeddings.csv` (stage-4 `output` default) |
+| Combined embeddings | `{datasets_root}/derivatives/champollion_V1/{masks}/embeddings/` (56 CSV files) |
+| Snapshots | `{datasets_root}/derivatives/champollion_V1/{masks}/snapshots/` |
 | Streaming worker logs | `{output_dir}/logs/{scan_id}/worker.log` |
 | Streaming combined | `{output_dir}/combined_embeddings/` |
 
@@ -356,5 +360,5 @@ Sanity checks:
 ls {output_dir}/derivatives/cortical_tiles-*/crops/canonical_25/2mm | wc -l
 
 # 56 combined embedding CSVs?
-ls {output_dir}/derivatives/champollion_V1/embeddings/*.csv | wc -l
+ls {datasets_root}/derivatives/champollion_V1/{masks}/embeddings/*.csv | wc -l
 ```
