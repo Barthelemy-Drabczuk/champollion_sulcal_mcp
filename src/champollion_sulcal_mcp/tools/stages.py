@@ -207,6 +207,7 @@ async def start_config(
     output: str | None = None,
     external_config: str | None = None,
     external_crops: bool = False,
+    masks: str | None = None,
     ctx: Context | None = None,
 ) -> dict:
     """Launch Stage 3: generate Champollion dataset YAML configuration files.
@@ -218,7 +219,8 @@ async def start_config(
     (default {configs root}/dataset_localization/). Each is forwarded only when
     supplied, so the pipeline defaults apply otherwise. When supplied, `output` and
     `external_config` must be absolute paths and, when the MCP client declares
-    roots, inside a declared root.
+    roots, inside a declared root. `masks` is the mask version tag forwarded as
+    --masks; it must match the stage-2 masks (script default canonical_25).
     """
     _require_absolute(crop_path, "crop_path")
     if output:
@@ -250,6 +252,8 @@ async def start_config(
         argv += ["--external-config", external_config]
     if external_crops:
         argv.append("--external_crops")
+    if masks:
+        argv += ["--masks", masks]
 
     output_dir = output or crop_path
 

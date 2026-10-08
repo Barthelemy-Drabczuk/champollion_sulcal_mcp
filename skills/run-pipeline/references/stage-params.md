@@ -59,6 +59,7 @@ Generates Champollion dataset YAML configuration files (`reference.yaml`, `local
 | `champollion_loc` | str | no | Override path to champollion_V1 (default: `external/champollion_V1`) |
 | `external_config` | str | no | Absolute path (directory or file) where the `dataset_localization` YAML is written; must be inside a declared MCP root when roots are declared. Default: `{configs root}/dataset_localization/`. Use for read-only containers |
 | `external_crops` | bool | no | Set when crops are outside the pipeline dir |
+| `masks` | str | no | Mask version tag forwarded as `--masks` (e.g. `canonical_corrected_26_1`); must match the stage-2 masks. Default: the script's `canonical_25` |
 
 Output: `{configs root}/dataset/{dataset}/` (`reference.yaml` + one YAML per region) and `{configs root}/dataset_localization/` (unless `external_config` is set). `start_embeddings` (stage 4) does not consume these files (each model folder carries its own `.hydra/config.yaml`); they feed `start_training` via `config_dir`.
 
